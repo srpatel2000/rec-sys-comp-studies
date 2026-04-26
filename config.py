@@ -1,0 +1,94 @@
+"""
+Global project configuration.
+
+This file defines variables shared across the repository. 
+"""
+
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from types import SimpleNamespace
+
+
+@dataclass
+class SASRecModelConfig:
+	"""SASRec Model/training hyperparameters."""
+
+	# Model vars
+	batch_size: int = 128
+	lr: float = 0.001
+	num_epochs: int = 201
+	l2_emb: float = 0.0
+
+	# Model architecture vars
+	maxlen: int = 50
+	hidden_units: int = 50
+	num_blocks: int = 2
+	num_heads: int = 1
+	dropout_rate: float = 0.5
+	
+
+
+@dataclass
+class GPT4RecModelConfig:
+	"""GPT4Rec Model/training hyperparameters."""
+
+	# Optimization
+	batch_size: int = 128
+	lr: float = 0.001
+	num_epochs: int = 201
+	l2_emb: float = 0.0
+
+	# Architecture
+	maxlen: int = 50
+	hidden_units: int = 50
+	num_blocks: int = 2
+	num_heads: int = 1
+	dropout_rate: float = 0.5
+
+
+
+@dataclass
+class GlobalConfig:
+	"""Project-level settings."""
+	
+    datasets: list[str] = field(default_factory=lambda: 
+	[
+        "Clothing_Shoes_and_Jewelry",
+        "Electronics",
+        "Movies_and_TV",
+        "Automotive",
+        "Health_and_Personal_Care",
+    ])
+    
+    train_dir: str = "default"
+
+	project_root: Path = Path(__file__).resolve().parent
+	data_dir: Path = project_root / "data"
+	processed_dir: Path = project_root / "processed"
+	outputs_dir: Path = project_root / "outputs"
+	random_seed: int = 42
+	use_gpu: bool = True
+	
+	sasRecModel: SASRecModelConfig = field(default_factory=SASRecModelConfig)
+	gpt4RecModel: GPT4RecModelConfig = field(default_factory=GPT4RecModelConfig)
+
+	def to_dict(self) -> dict:
+		"""Return all config values as a dict."""
+		config_dict = asdict(self)
+		config_dict["project_root"] = str(self.project_root)
+		config_dict["data_dir"] = str(self.data_dir)
+		config_dict["processed_dir"] = str(self.processed_dir)
+		config_dict["outputs_dir"] = str(self.outputs_dir)
+		return config_dict
+
+    def model_namespace(self, model_name: str = "sasrec") -> SimpleNamespace:
+        if model_name.lower() == "sasrec":
+            return SimpleNamespace(**asdict(self.sasRecModel))
+        if model_name.lower() == "gpt4rec":
+            return SimpleNamespace(**asdict(self.gpt4RecModel))
+        raise ValueError(f"Unknown model_name: {model_name}")
+
+
+# Global singleton used across the project.
+config = GlobalConfig()
+
