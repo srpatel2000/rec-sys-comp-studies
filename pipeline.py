@@ -26,17 +26,16 @@ def extract():
     """Step 2: Extract data from HuggingFace"""
 
     # TODO: add logic to check if data already exists in processed dir before re-extracting from HuggingFace
-
-    loadAmazonReviews(config=config, target_users=config.samples)
     
-    # logging.info("Extracting samples for cold start data...")
-    # cs_exp1_sample_df = loadDataPipeline(GlobalConfig, cold_start=True) # loads reviews sample, item metadata, and joins them into one sequential dataset
-    # logging.info("Extracting samples for dense data...")
-    # dense_sample_df = loadDataPipeline(GlobalConfig, cold_start=False)
+    # loads reviews sample, item metadata, and joins them into one sequential dataset
+    logging.info("Extracting samples for cold start data...")
+    cs_sample_df = loadDataPipeline(config, cold_start=True)
+    logging.info("Extracting samples for dense data...")
+    dense_sample_df = loadDataPipeline(config, cold_start=False)
 
-    # splitDataPipeline(cs_exp1_sample_df) # splits data into train/val (optinal)/test and saves to processed dir
-    # splitDataPipeline(cs_exp2_sample_df) # splits data into train/val (optinal)/test and saves to processed dir
-    # splitDataPipeline(dense_sample_df) # splits data into train/val (optinal)/test and saves to processed dir
+    # splits data into train/val (optinal)/test and saves to processed dir
+    splitDataPipeline(cs_sample_df) 
+    splitDataPipeline(dense_sample_df) 
 
     return 
 

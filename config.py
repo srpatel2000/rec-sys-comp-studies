@@ -52,14 +52,12 @@ class GlobalConfig:
 	"""Project-level settings."""
 
 	datasets: List[str] = field(default_factory=lambda: [
-		"Clothing_Shoes_and_Jewelry",
-		"Electronics",
+		"All_Beauty",
 		"Movies_and_TV",
-		"Automotive"
 	])
 
 	train_dir: str = "default"
-	samples: int = 100000  # number of samples to load from the full dataset
+	samples: int = 50000  # number of samples to load from the full dataset
 
 	project_root: Path = Path(__file__).resolve().parent
 	data_dir: Path = project_root / "data"
