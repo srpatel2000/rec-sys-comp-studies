@@ -7,6 +7,7 @@ This file defines variables shared across the repository.
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
+from typing import List
 
 
 @dataclass
@@ -25,7 +26,6 @@ class SASRecModelConfig:
 	num_blocks: int = 2
 	num_heads: int = 1
 	dropout_rate: float = 0.5
-	
 
 
 @dataclass
@@ -50,17 +50,16 @@ class GPT4RecModelConfig:
 @dataclass
 class GlobalConfig:
 	"""Project-level settings."""
-	
-    datasets: list[str] = field(default_factory=lambda: 
-	[
-        "Clothing_Shoes_and_Jewelry",
-        "Electronics",
-        "Movies_and_TV",
-        "Automotive",
-        "Health_and_Personal_Care",
-    ])
-    
-    train_dir: str = "default"
+
+	datasets: List[str] = field(default_factory=lambda: [
+		"Clothing_Shoes_and_Jewelry",
+		"Electronics",
+		"Movies_and_TV",
+		"Automotive"
+	])
+
+	train_dir: str = "default"
+	samples: int = 100000  # number of samples to load from the full dataset
 
 	project_root: Path = Path(__file__).resolve().parent
 	data_dir: Path = project_root / "data"
@@ -68,7 +67,7 @@ class GlobalConfig:
 	outputs_dir: Path = project_root / "outputs"
 	random_seed: int = 42
 	use_gpu: bool = True
-	
+
 	sasRecModel: SASRecModelConfig = field(default_factory=SASRecModelConfig)
 	gpt4RecModel: GPT4RecModelConfig = field(default_factory=GPT4RecModelConfig)
 
@@ -81,12 +80,12 @@ class GlobalConfig:
 		config_dict["outputs_dir"] = str(self.outputs_dir)
 		return config_dict
 
-    def model_namespace(self, model_name: str = "sasrec") -> SimpleNamespace:
-        if model_name.lower() == "sasrec":
-            return SimpleNamespace(**asdict(self.sasRecModel))
-        if model_name.lower() == "gpt4rec":
-            return SimpleNamespace(**asdict(self.gpt4RecModel))
-        raise ValueError(f"Unknown model_name: {model_name}")
+	def model_namespace(self, model_name: str = "sasrec") -> SimpleNamespace:
+		if model_name.lower() == "sasrec":
+			return SimpleNamespace(**asdict(self.sasRecModel))
+		if model_name.lower() == "gpt4rec":
+			return SimpleNamespace(**asdict(self.gpt4RecModel))
+		raise ValueError(f"Unknown model_name: {model_name}")
 
 
 # Global singleton used across the project.
