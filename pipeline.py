@@ -4,12 +4,15 @@ Pipeline file to run the entire project end-to-end.
 
 from config import GlobalConfig, SASRecModelConfig, GPT4RecModelConfig
 from data_loading import *
+from train_val_test_split import *
 from eda import *
 from utils import *
 
 import time
 import logging
 import sys
+from pathlib import Path
+import pandas as pd
 
 config = GlobalConfig()
 
@@ -23,39 +26,94 @@ def instantiateDirs():
     return
 
 def extract():
-    """Step 2: Extract data from HuggingFace"""
+    """Step 2: Extract data from HuggingFace and split into train/val/test sets."""
 
-    # TODO: add logic to check if data already exists in processed dir before re-extracting from HuggingFace
-    
+    project_root = Path(__file__).resolve().parent
+
     # loads reviews sample, item metadata, and joins them into one sequential dataset
-    logging.info("Extracting samples for cold start data...")
-    cs_sample_df = loadDataPipeline(config, cold_start=True)
+    dense_file_path = project_root/"data"/"raw_dataset"/f"dense_sample_{config.samples}_users.csv"
+    cs_file_path = project_root/"data"/"raw_dataset"/f"cold_start_sample_{config.samples}_users.csv"
+
     logging.info("Extracting samples for dense data...")
-    dense_sample_df = loadDataPipeline(config, cold_start=False)
+    if dense_file_path.is_file():
+        dense_sample_df = pd.read_csv(dense_file_path)
+    else:
+        dense_sample_df = loadDataPipeline(config, cold_start=False, target_users=config.samples)
+    
+    logging.info("Extracting samples for cold start data...")
+    if cs_file_path.is_file():
+        cs_sample_df = pd.read_csv(cs_file_path)
+    else:
+        cs_sample_df = loadDataPipeline(config, cold_start=True, target_users=config.samples)
 
-    # splits data into train/val (optinal)/test and saves to processed dir
-    splitDataPipeline(cs_sample_df) 
-    splitDataPipeline(dense_sample_df) 
+    return dense_sample_df, cs_sample_df
 
-    return 
+def runRawEDA(data, cold_start=False):
+    """Step 3: Run EDA on the raw data."""
 
-# def transform(data):
-#     """Step 2: Clean, filter, or process the raw data"""
-#     logging.info("Transforming data...")
-#     # Example transformation: Uppercase the values
-#     data["value"] = [v.lower() for v in data["value"]]
-#     return data
+    logging.info("Running EDA on raw data...")
 
-# def load(data):
-#     """Step 3: Save processed data to destination (SQL, S3, local file)"""
-#     logging.info("Loading data to destination...")
-#     # Your loading logic here
-#     print(f"Final Data: {data}")
+    plotInteractionDistribution(data, user_col="user_id", item_col="parent_asin", cold_start=cold_start)
+
+    return data
+
+def trainValTestSplit():
+    """Step 4: Split the data into train, val, and test sets.
+     
+    For dense dataset: Reads in data from dense dataset and removes last interaction as test, 
+    second to last as val, and rest as train.
+    
+    For cold start dataset: Reads in data from cold start dataset and trains on all users with 
+    >=4 interactions and N-1th interactions for users with 2 reviews and N-2th interactions for 
+    users with 3 reviews. Validate on users with 3 interactions on their N-1th interaction. Tests 
+    on users with 2-3 interactions using last interaction."""
+
+    logging.info("Splitting data into train/val/test sets...")
+    
+    if (config.data_dir / "train" / "dense_train.csv").exists() and \
+            (config.data_dir / "val" / "dense_val.csv").exists() and \
+                (config.data_dir / "test" / "dense_test.csv").exists() and \
+                    (config.data_dir / "train" / "cold_start_train.csv").exists() and \
+                        (config.data_dir / "val" / "cold_start_val.csv").exists() and \
+                            (config.data_dir / "test" / "cold_start_test.csv").exists():
+            logging.info("train/val/test splits already exist. loading from disk...")
+            dense_train = pd.read_csv(config.data_dir / "train" / "dense_train.csv")
+            dense_val = pd.read_csv(config.data_dir / "val" / "dense_val.csv")
+            dense_test = pd.read_csv(config.data_dir / "test" / "dense_test.csv")
+            cs_train = pd.read_csv(config.data_dir / "train" / "cold_start_train.csv")
+            cs_val = pd.read_csv(config.data_dir / "val" / "cold_start_val.csv")
+            cs_test = pd.read_csv(config.data_dir / "test" / "cold_start_test.csv")
+    else:
+        dense_train, dense_val, dense_test, cs_train, cs_val, cs_test = createTrainValTestSplits()
+    
+    return dense_train, dense_val, dense_test, cs_train, cs_val, cs_test
+
+# def transform(model_name="sasrec"):
+#     """Step 4: Transform raw data into format suitable for model training."""
+#     logging.info("Transforming raw data...")
+#     # Example transformation: create user-item interaction matrix, encode categorical variables, etc.
+#     return raw_data
+
+
+# def runSASRec():
+#     """Step 4: Transform raw data into format suitable for model training."""
+#     logging.info("Transforming raw data...")
+#     # Example transformation: create user-item interaction matrix, encode categorical variables, etc.
+#     return raw_data
+
 
 def main():
     try:
         instantiateDirs()
-        extract()
+
+        dense_sample_df, cs_sample_df = extract()
+
+        runRawEDA(cs_sample_df, cold_start=True)
+        runRawEDA(dense_sample_df)
+
+        dense_train, dense_val, dense_test, cs_train, cs_val, cs_test = trainValTestSplit()
+
+
         # processed_data = transform(raw_data)
         # load(processed_data)
         logging.info("Pipeline completed successfully.")

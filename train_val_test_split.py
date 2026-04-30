@@ -1,118 +1,116 @@
-# def check_cols(df, specified_cols):
-#     """Check if the DataFrame contains the specified columns for user, item, and timestamp columns.
-#     Raises error if specified columns are not found. """
+from config import GlobalConfig
+from pathlib import Path
+import logging
+import pandas as pd
 
-#     for col in specified_cols:
-#         if col in df.columns:
-#             logging.info(f"Found column '{col}' in DataFrame.")
+
+def splitDenseData(dense_df):
+    """Split dense data: Nth interaction as test, N-1th interaction as val, every other interaction as train."""
     
-#     raise ValueError("DataFrame must contain specified user, item, and timestamp columns.")
-
-
-# def concat_parts(parts, template_df):
-#     if not parts:
-#         return template_df.iloc[0:0].copy()
-#     return pd.concat(parts, ignore_index=True)
-
-
-# def sequential_split(source_df, user_col, time_col):
-#     train_parts, val_parts, test_parts = [], [], []
-
-#     for _, user_df in source_df.groupby(user_col, sort=False):
-#         user_df = user_df.sort_values(time_col)
-#         n = len(user_df)
-
-#         if n >= 3:
-#             train_parts.append(user_df.iloc[:-2])
-#             val_parts.append(user_df.iloc[[-2]])
-#             test_parts.append(user_df.iloc[[-1]])
-#         elif n == 2:
-#             val_parts.append(user_df.iloc[[0]])
-#             test_parts.append(user_df.iloc[[1]])
-#         elif n == 1:
-#             test_parts.append(user_df.iloc[[0]])
-
-#     train_df = concat_parts(train_parts, source_df)
-#     val_df = concat_parts(val_parts, source_df)
-#     test_df = concat_parts(test_parts, source_df)
-#     return train_df, val_df, test_df
-
-
-# def save_splits(train_df, val_df, test_df, out_dir):
-#     out_dir.mkdir(parents=True, exist_ok=True)
-#     train_df.to_csv(out_dir / "train.csv", index=False)
-#     val_df.to_csv(out_dir / "val.csv", index=False)
-#     test_df.to_csv(out_dir / "test.csv", index=False)
-
-
-# def splitDataset(df, cold_start, config=GlobalConfig, split_ratio=0.8):
-#     """
-#     Function splits dataset into train, val, and test sets and saves them to the processed directory.
-#     Train, val, and test are split by user sequence and will be different based on experiment type:
+    train_rows = []
+    val_rows = []
+    test_rows = []
     
-#     Cold Starts Experiment 1: Want to test model on users with interaction history size 2-4. Will 
-#     train on all users with >=5 interactions.
+    for user_id, group in dense_df.groupby("user_id"):
+        # sort by timestamp to preserve interaction order
+        group = group.sort_values("timestamp").reset_index(drop=True)
+        n = len(group)
 
-#     Cold Starts Experiment 2: Want to test model on bottom 10% frequency items. Will leave the item 
-#     in the vocabulary set, but will remove any interaction during training.
-
-#     Non-cold start: Reads in data from dense dataset and removes last interaction as test, second to 
-#     last as val, and rest as train.
-#     """
-
-#     user_col = check_cols(df, ["user_id"])
-#     item_col = check_cols(df, ["parent_asin"])
-#     time_col = check_cols(df, ["timestamp"])
-
-#     df = df.sort_values([user_col, time_col]).reset_index(drop=True) # ensure sequential order by user, item
-
-#     data_dir = config.data_dir
-
-#     if cold_start:
-#         ##### Experiment 1 `#####
-#         # Train on users with >=5 interactions.
-#         # Evaluate on users with 2-4 interactions.
-#         user_counts = df[user_col].value_counts()
-#         train_users = user_counts[user_counts >= 5].index
-#         eval_users = user_counts[(user_counts >= 2) & (user_counts <= 4)].index
-
-#         exp1_train = df[df[user_col].isin(train_users)].copy()
-#         exp1_eval = df[df[user_col].isin(eval_users)].copy()
-#         _, exp1_val, exp1_test = sequential_split(exp1_eval, user_col, time_col)
-
-#         exp1_dir = base_processed_dir / "cold_start" / "experiment_1"
-#         save_splits(exp1_train, exp1_val, exp1_test, exp1_dir)
-
-#         ##### Experiment 2 #####
-#         # Bottom 10% frequency items are test items.
-#         # Remove their interactions from train, but keep them in val/test.
-#         item_counts = df[item_col].value_counts()
-#         freq_cutoff = item_counts.quantile(0.10)
-#         low_freq_items = item_counts[item_counts <= freq_cutoff].index
-
-#         exp2_train, exp2_val, exp2_test = sequential_split(df, user_col, time_col)
-#         exp2_train = exp2_train[~exp2_train[item_col].isin(low_freq_items)].copy()
-#         exp2_val = exp2_val[exp2_val[item_col].isin(low_freq_items)].copy()
-#         exp2_test = exp2_test[exp2_test[item_col].isin(low_freq_items)].copy()
-
-#         exp2_dir = base_processed_dir / "cold_start" / "experiment_2"
-#         save_splits(exp2_train, exp2_val, exp2_test, exp2_dir)
-
-#         return
-
-#     else:
-#         # want to return sequential interactions as test
-#         # remove last interaction as test, second to last as val, and rest as train
-#         train_df, val_df, test_df = sequential_split(df, user_col, time_col)
-#         out_dir = base_processed_dir / "non_cold_start"
-#         save_splits(train_df, val_df, test_df, out_dir)
-#         return
+        if n < 5:
+            # accounting for any users with less than 5 interactions (should be rare since this is the dense dataset)
+            logging.warning(f"User {user_id} has less than 5 interactions ({n}). Removing from dense dataset.")
+            continue
+        
+        train_rows.append(group.iloc[:-2])
+        val_rows.append(group.iloc[-2:-1])
+        test_rows.append(group.iloc[-1:])
+    
+    train_df = pd.concat(train_rows, ignore_index=True)
+    val_df = pd.concat(val_rows, ignore_index=True) if val_rows else pd.DataFrame(columns=dense_df.columns)
+    test_df = pd.concat(test_rows, ignore_index=True)
+    
+    return train_df, val_df, test_df
 
 
+def splitColdStartData(cs_df):
+    """split cold start data: train all users with >=4 interactions, N-1th for 2-review users, N-2th for 3-review users.
+    validate on users with 3 interactions on their N-1th. test on users with 2-3 interactions using last interaction."""
+    
+    train_rows = []
+    val_rows = []
+    test_rows = []
+    
+    for user_id, group in cs_df.groupby("user_id"):
+        # sort by timestamp to preserve interaction order
+        group = group.sort_values("timestamp").reset_index(drop=True)
+        n = len(group)
+
+        if n < 1:
+            # accounting for any users with less than 1 interaction (should be rare)
+            logging.warning(f"User {user_id} has less than 1 interaction ({n}). Removing from cold start dataset.")
+            continue
+        
+        if n >= 4:
+            train_rows.append(group)
+        elif n == 3:
+            train_rows.append(group.iloc[0:1])
+            val_rows.append(group.iloc[1:2])
+            test_rows.append(group.iloc[2:3])
+        elif n == 2:
+            # doesn't have enough interactions for val
+            train_rows.append(group.iloc[0:1])
+            test_rows.append(group.iloc[1:2])
+
+    train_df = pd.concat(train_rows, ignore_index=True)
+    val_df = pd.concat(val_rows, ignore_index=True) if val_rows else pd.DataFrame(columns=cs_df.columns)
+    test_df = pd.concat(test_rows, ignore_index=True)
+    
+    return train_df, val_df, test_df
 
 
-def bottomFrequencyItems(df, item_col, quantile=0.10):
-    item_counts = df[item_col].value_counts()
-    freq_cutoff = item_counts.quantile(quantile)
-    low_freq_items = item_counts[item_counts <= freq_cutoff].index
-    return low_freq_items
+def saveDataSplits(dense_train, dense_val, dense_test, cs_train, cs_val, cs_test):
+    
+    config = GlobalConfig()
+    project_root = Path(__file__).resolve().parent
+    
+    splits = {
+        "train": {"cold_start": cs_train, "dense": dense_train},
+        "val": {"cold_start": cs_val, "dense": dense_val},
+        "test": {"cold_start": cs_test, "dense": dense_test},
+    }
+    
+    for split_type, datasets in splits.items():
+        split_dir = project_root / "data" / split_type
+        split_dir.mkdir(parents=True, exist_ok=True)
+        
+        for dataset_name, df in datasets.items():
+            output_path = split_dir / f"{dataset_name}_{split_type}.csv"
+            df.to_csv(output_path, index=False)
+            logging.info(f"Saved {dataset_name} {split_type} split: {len(df)} rows to {output_path}")
+
+
+def createTrainValTestSplits():
+    """Orchestrate train/val/test splitting for both dense and cold start datasets."""
+    
+    config = GlobalConfig()
+    project_root = Path(__file__).resolve().parent
+    
+    # load raw datasets from csv
+    dense_path = project_root / "data" / "raw_dataset" / f"dense_sample_{config.samples}_users.csv"
+    cs_path = project_root / "data" / "raw_dataset" / f"cold_start_sample_{config.samples}_users.csv"
+    
+    dense_df = pd.read_csv(dense_path)
+    cs_df = pd.read_csv(cs_path)
+    
+    logging.info("Splitting dense dataset...")
+    dense_train, dense_val, dense_test = splitDenseData(dense_df)
+    
+    logging.info("Splitting cold start dataset...")
+    cs_train, cs_val, cs_test = splitColdStartData(cs_df)
+    
+    logging.info(f"Dense - train: {len(dense_train)}, val: {len(dense_val)}, test: {len(dense_test)}")
+    logging.info(f"Cold Start - train: {len(cs_train)}, val: {len(cs_val)}, test: {len(cs_test)}")
+    
+    saveDataSplits(dense_train, dense_val, dense_test, cs_train, cs_val, cs_test)
+    
+    return dense_train, dense_val, dense_test, cs_train, cs_val, cs_test

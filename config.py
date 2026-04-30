@@ -52,7 +52,7 @@ class GlobalConfig:
 	"""Project-level settings."""
 
 	datasets: List[str] = field(default_factory=lambda: [
-		"All_Beauty",
+		"CDs_and_Vinyl",
 		"Movies_and_TV",
 	])
 
@@ -61,7 +61,7 @@ class GlobalConfig:
 
 	project_root: Path = Path(__file__).resolve().parent
 	data_dir: Path = project_root / "data"
-	processed_dir: Path = project_root / "processed"
+	eda_dir: Path = project_root / "eda"
 	outputs_dir: Path = project_root / "outputs"
 	random_seed: int = 42
 	use_gpu: bool = True

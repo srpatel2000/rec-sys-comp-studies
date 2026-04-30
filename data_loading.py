@@ -12,7 +12,7 @@ logging.getLogger("filelock").setLevel(logging.WARNING) # don't want to see file
 
 def getHistoryBuckets(max_interactions=None):
     bucket_ranges = [
-        (1, 4),
+        (2, 4),
         (5, 9),
         (10, max_interactions),
     ]
@@ -117,7 +117,6 @@ def loadAmazonReviews(config=GlobalConfig,
                       max_interactions=None):
     
     cfg = config() if isinstance(config, type) else config
-    total_start = time.perf_counter()
 
     first_pass_start = time.perf_counter()
     first_pass_streams = getReviewStreams(cfg, core=core, cold_start=cold_start)
@@ -181,12 +180,8 @@ def loadAmazonReviews(config=GlobalConfig,
         f"Collected histories for {len(user_rows)} users."
     )
 
-    dataset_start = time.perf_counter()
     rows = [row for history in user_rows.values() for row in history]
-
     dataset = datasets.Dataset.from_list(rows)
-    dataset_seconds = time.perf_counter() - dataset_start
-    logging.info(f"Built review dataset in {dataset_seconds:.2f} seconds.")
 
     if max_interactions is None:
         logging.info(
@@ -199,8 +194,6 @@ def loadAmazonReviews(config=GlobalConfig,
             f"Total interactions: {len(dataset)}"
         )
 
-    total_minutes = (time.perf_counter() - total_start) / 60
-    logging.info(f"loadAmazonReviews completed in {total_minutes:.2f} minutes.")
     return dataset
 
 
@@ -210,7 +203,6 @@ def loadItemMetadata(reviews_df, config=GlobalConfig, max_scan=8_000_000):
     Creds to Copilot for the efficient streaming approach to load only relevant metadata from 
     HuggingFace instead of the full dataset."""
 
-    total_start = time.perf_counter()
     item_id_start = time.perf_counter()
 
     if isinstance(reviews_df, pd.DataFrame):
@@ -226,7 +218,7 @@ def loadItemMetadata(reviews_df, config=GlobalConfig, max_scan=8_000_000):
     if not item_ids:
         raise ValueError("No valid item IDs found.")
 
-    keep_cols = ["parent_asin", "title", "main_category"]
+    keep_cols = ["parent_asin", "title", "main_category", "description"]
     remaining = set(item_ids)
     rows = []
 
@@ -263,6 +255,7 @@ def loadItemMetadata(reviews_df, config=GlobalConfig, max_scan=8_000_000):
                         "parent_asin": batch["parent_asin"][j],
                         "title": batch["title"][j],
                         "main_category": batch["main_category"][j],
+                        "description": batch["description"][j],
                     })
                     remaining.discard(asin)
 
@@ -281,9 +274,8 @@ def loadItemMetadata(reviews_df, config=GlobalConfig, max_scan=8_000_000):
         if not remaining:
             break
 
-    total_minutes = (time.perf_counter() - total_start) / 60
     logging.info(
-        f"Metadata loaded: {len(item_ids) - len(remaining)}/{len(item_ids)} items found in {total_minutes:.2f} minutes."
+        f"Metadata loaded: {len(item_ids) - len(remaining)}/{len(item_ids)} items found."
     )
     return pd.DataFrame(rows)
 
@@ -292,8 +284,6 @@ def createUserItemPairings(reviews_df, metadata_df):
     """Joins reviews_df and metadata_df on 'parent_asin' to create a sequential dataset 
     with user, item, timestamp, and metadata features."""
 
-    merge_start = time.perf_counter()
-
     if not isinstance(reviews_df, pd.DataFrame):
         reviews_df = reviews_df.to_pandas()
 
@@ -301,27 +291,24 @@ def createUserItemPairings(reviews_df, metadata_df):
         metadata_df = pd.DataFrame(metadata_df)
 
     merged_df = pd.merge(reviews_df, metadata_df, on="parent_asin", how="left")
-    merge_seconds = time.perf_counter() - merge_start
-    logging.info(f"Merged reviews and metadata in {merge_seconds:.2f} seconds.")
+
     return merged_df
 
 
-def saveRawData(df, out_path=GlobalConfig.data_dir/"raw_dataset.csv"):
+def saveRawData(df, csv_name, out_path=GlobalConfig.data_dir/"raw_dataset.csv"):
     """Saves the raw extracted data to a CSV file in the processed directory."""
-    save_start = time.perf_counter()
+    out_path = GlobalConfig.data_dir / "raw_dataset" / csv_name
     df.to_csv(out_path, index=False)
-    save_seconds = time.perf_counter() - save_start
-    logging.info(f"Raw data saved to {out_path} in {save_seconds:.2f} seconds.")
 
 
-def loadDataPipeline(config=GlobalConfig, cold_start=False):
+def loadDataPipeline(config=GlobalConfig, cold_start=False, target_users=250000):
     """Full data loading pipeline that extracts reviews and metadata, creates sequential 
     dataset, and saves to processed dir."""
 
     total_start = time.perf_counter()
 
     reviews_start = time.perf_counter()
-    reviews_df = loadAmazonReviews(config=config, cold_start=cold_start, target_users=config.samples)
+    reviews_df = loadAmazonReviews(config=config, cold_start=cold_start, target_users=target_users)
     logging.info(f"Review loading section completed in {(time.perf_counter() - reviews_start) / 60:.2f} minutes.")
 
     metadata_start = time.perf_counter()
@@ -333,7 +320,11 @@ def loadDataPipeline(config=GlobalConfig, cold_start=False):
     logging.info(f"Pairing section completed in {(time.perf_counter() - pairing_start) / 60:.2f} minutes.")
 
     save_start = time.perf_counter()
-    saveRawData(sequential_df)
+    if cold_start:
+        csv_name = f"cold_start_sample_{len(sequential_df['user_id'].unique())}_users.csv"
+    else:
+        csv_name = f"dense_sample_{len(sequential_df['user_id'].unique())}_users.csv"
+    saveRawData(sequential_df, csv_name=csv_name)
     logging.info(f"Save section completed in {(time.perf_counter() - save_start) / 60:.2f} minutes.")
 
     total_minutes = (time.perf_counter() - total_start) / 60
