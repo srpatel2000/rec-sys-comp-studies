@@ -64,7 +64,8 @@ class GlobalConfig:
 	project_root: Path = Path(__file__).resolve().parent
 	data_dir: Path = project_root / "data"
 	eda_dir: Path = project_root / "eda"
-	outputs_dir: Path = project_root / "outputs"
+	trained_models_dir: Path = project_root / "trained_models"
+	
 	random_seed: int = 42
 	use_gpu: bool = True
 
@@ -76,8 +77,8 @@ class GlobalConfig:
 		config_dict = asdict(self)
 		config_dict["project_root"] = str(self.project_root)
 		config_dict["data_dir"] = str(self.data_dir)
-		config_dict["processed_dir"] = str(self.processed_dir)
-		config_dict["outputs_dir"] = str(self.outputs_dir)
+		config_dict["eda_dir"] = str(self.eda_dir)
+		config_dict["trained_models_dir"] = str(self.trained_models_dir)
 		return config_dict
 
 	def model_namespace(self, model_name: str = "sasrec") -> SimpleNamespace:
