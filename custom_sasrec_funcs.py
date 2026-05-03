@@ -9,10 +9,11 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # silences info and warning logs
 import tensorflow.compat.v1 as tf
 
-from config import GlobalConfig
+from config import GlobalConfig, SASRecModelConfig
 from sas_rec.sampler import WarpSampler
 from sas_rec.model import Model
 
+sasrec_config = SASRecModelConfig()
 
 def buildIDMappings(data):
     """Build user and item ID mappings to convert raw IDs to integer indices
@@ -136,7 +137,7 @@ def predictForUsers(model, sess, user_sequences, target_df, itemnum, maxlen, pre
             gt_item = gt_batch[i]
             gt_score = float(scores[i][gt_item - 1])  # items are 1-indexed
             rank = int((scores[i] >= gt_score).sum())  # rank of ground-truth item
-            top_10 = np.argsort(-scores[i])[:10] + 1   # top 10 item IDs
+            top_10 = np.argsort(-scores[i])[:sasrec_config.num_preds] + 1   # top 10 item IDs
 
             predictions.append({
                 "user_int_id": uid,

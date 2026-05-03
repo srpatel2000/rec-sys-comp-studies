@@ -26,6 +26,8 @@ class SASRecModelConfig:
 	num_blocks: int = 2
 	num_heads: int = 1
 	dropout_rate: float = 0.5
+	
+    num_preds: int = 1000  # number of items to return in the ranked list of predictions for each user (for evaluation)
 
 
 @dataclass
