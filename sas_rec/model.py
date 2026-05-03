@@ -1,4 +1,8 @@
-from modules import *
+from .modules import *
+import os
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
+
+import tensorflow.compat.v1 as tf
 
 
 class Model():
@@ -12,6 +16,7 @@ class Model():
         neg = self.neg
         mask = tf.expand_dims(tf.to_float(tf.not_equal(self.input_seq, 0)), -1)
 
+        print("[Model] Starting SASRec variable scope")
         with tf.variable_scope("SASRec", reuse=reuse):
             # sequence embedding, item embedding table
             self.seq, item_emb_table = embedding(self.input_seq,
@@ -24,6 +29,7 @@ class Model():
                                                  with_t=True,
                                                  reuse=reuse
                                                  )
+            print("[Model] Finished input/item embedding")
 
             # Positional Encoding
             t, pos_emb_table = embedding(
@@ -38,12 +44,12 @@ class Model():
                 with_t=True
             )
             self.seq += t
+            print("[Model] Finished positional encoding")
 
             # Dropout
-            self.seq = tf.layers.dropout(self.seq,
-                                         rate=args.dropout_rate,
-                                         training=tf.convert_to_tensor(self.is_training))
+            self.seq = tf.keras.layers.Dropout(rate=args.dropout_rate)(self.seq, training=tf.convert_to_tensor(self.is_training))
             self.seq *= mask
+            print("[Model] Finished dropout and masking")
 
             # Build blocks
 
@@ -64,24 +70,34 @@ class Model():
                     self.seq = feedforward(normalize(self.seq), num_units=[args.hidden_units, args.hidden_units],
                                            dropout_rate=args.dropout_rate, is_training=self.is_training)
                     self.seq *= mask
+                print(f"[Model] Finished block {i+1}/{args.num_blocks}")
 
             self.seq = normalize(self.seq)
+            print("[Model] Finished all transformer blocks and normalization")
 
         pos = tf.reshape(pos, [tf.shape(self.input_seq)[0] * args.maxlen])
         neg = tf.reshape(neg, [tf.shape(self.input_seq)[0] * args.maxlen])
         pos_emb = tf.nn.embedding_lookup(item_emb_table, pos)
         neg_emb = tf.nn.embedding_lookup(item_emb_table, neg)
         seq_emb = tf.reshape(self.seq, [tf.shape(self.input_seq)[0] * args.maxlen, args.hidden_units])
+        print("[Model] Finished positive/negative embedding lookups and seq reshape")
 
-        self.test_item = tf.placeholder(tf.int32, shape=(101))
+        self.test_item = tf.placeholder(tf.int32, shape=(None))
         test_item_emb = tf.nn.embedding_lookup(item_emb_table, self.test_item)
         self.test_logits = tf.matmul(seq_emb, tf.transpose(test_item_emb))
-        self.test_logits = tf.reshape(self.test_logits, [tf.shape(self.input_seq)[0], args.maxlen, 101])
+        print("[Model] Finished test logits matmul")
+        self.test_logits = tf.reshape(
+            self.test_logits,
+            [tf.shape(self.input_seq)[0], args.maxlen, tf.shape(self.test_item)[0]]
+        )
+        print("[Model] Finished test logits reshape")
         self.test_logits = self.test_logits[:, -1, :]
+        print("[Model] Finished test logits slicing")
 
         # prediction layer
         self.pos_logits = tf.reduce_sum(pos_emb * seq_emb, -1)
         self.neg_logits = tf.reduce_sum(neg_emb * seq_emb, -1)
+        print("[Model] Finished pos/neg logits computation")
 
         # ignore padding items (0)
         istarget = tf.reshape(tf.to_float(tf.not_equal(pos, 0)), [tf.shape(self.input_seq)[0] * args.maxlen])
@@ -91,21 +107,26 @@ class Model():
         ) / tf.reduce_sum(istarget)
         reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
         self.loss += sum(reg_losses)
+        print("[Model] Finished loss computation")
 
         tf.summary.scalar('loss', self.loss)
         self.auc = tf.reduce_sum(
             ((tf.sign(self.pos_logits - self.neg_logits) + 1) / 2) * istarget
         ) / tf.reduce_sum(istarget)
+        print("[Model] Finished AUC computation")
 
         if reuse is None:
             tf.summary.scalar('auc', self.auc)
             self.global_step = tf.Variable(0, name='global_step', trainable=False)
             self.optimizer = tf.train.AdamOptimizer(learning_rate=args.lr, beta2=0.98)
             self.train_op = self.optimizer.minimize(self.loss, global_step=self.global_step)
+            print("[Model] Finished optimizer and train_op setup")
         else:
             tf.summary.scalar('test_auc', self.auc)
+            print("[Model] Finished test AUC summary setup")
 
         self.merged = tf.summary.merge_all()
+        print("[Model] Finished summary merge")
 
     def predict(self, sess, u, seq, item_idx):
         return sess.run(self.test_logits,

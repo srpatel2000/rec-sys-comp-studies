@@ -1,7 +1,9 @@
 import os
 import time
 import argparse
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+tf.disable_eager_execution()
 from sampler import WarpSampler
 from model import Model
 from tqdm import tqdm

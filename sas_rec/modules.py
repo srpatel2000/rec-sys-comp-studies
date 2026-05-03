@@ -7,7 +7,9 @@ https://www.github.com/kyubyong/transformer
 '''
 
 from __future__ import print_function
-import tensorflow as tf
+import os
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
+import tensorflow.compat.v1 as tf
 import numpy as np
 
 
@@ -118,7 +120,7 @@ def embedding(inputs,
                                        dtype=tf.float32,
                                        shape=[vocab_size, num_units],
                                        #initializer=tf.contrib.layers.xavier_initializer(),
-                                       regularizer=tf.contrib.layers.l2_regularizer(l2_reg))
+                                       regularizer=tf.keras.regularizers.l2(l2_reg))
         if zero_pad:
             lookup_table = tf.concat((tf.zeros(shape=[1, num_units]),
                                       lookup_table[1:, :]), 0)
@@ -208,7 +210,7 @@ def multihead_attention(queries,
         outputs *= query_masks # broadcasting. (N, T_q, C)
           
         # Dropouts
-        outputs = tf.layers.dropout(outputs, rate=dropout_rate, training=tf.convert_to_tensor(is_training))
+        outputs = tf.keras.layers.Dropout(rate=dropout_rate)(outputs, training=tf.convert_to_tensor(is_training))
                
         # Weighted sum
         outputs = tf.matmul(outputs, V_) # ( h*N, T_q, C/h)
@@ -248,12 +250,12 @@ def feedforward(inputs,
         params = {"inputs": inputs, "filters": num_units[0], "kernel_size": 1,
                   "activation": tf.nn.relu, "use_bias": True}
         outputs = tf.layers.conv1d(**params)
-        outputs = tf.layers.dropout(outputs, rate=dropout_rate, training=tf.convert_to_tensor(is_training))
+        outputs = tf.keras.layers.Dropout(rate=dropout_rate)(outputs, training=tf.convert_to_tensor(is_training))
         # Readout layer
         params = {"inputs": outputs, "filters": num_units[1], "kernel_size": 1,
                   "activation": None, "use_bias": True}
         outputs = tf.layers.conv1d(**params)
-        outputs = tf.layers.dropout(outputs, rate=dropout_rate, training=tf.convert_to_tensor(is_training))
+        outputs = tf.keras.layers.Dropout(rate=dropout_rate)(outputs, training=tf.convert_to_tensor(is_training))
         
         # Residual connection
         outputs += inputs

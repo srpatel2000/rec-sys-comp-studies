@@ -2,11 +2,17 @@
 Pipeline file to run the entire project end-to-end. 
 """
 
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
 from config import GlobalConfig, SASRecModelConfig, GPT4RecModelConfig
 from data_loading import *
 from train_val_test_split import *
 from eda import *
 from utils import *
+from custom_sasrec_funcs import runSASRecPipeline
 
 import time
 import logging
@@ -76,23 +82,12 @@ def trainValTestSplit():
                     (config.data_dir / "train" / "cold_start_train.csv").exists() and \
                         (config.data_dir / "val" / "cold_start_val.csv").exists() and \
                             (config.data_dir / "test" / "cold_start_test.csv").exists():
-            logging.info("train/val/test splits already exist. loading from disk...")
-            dense_train = pd.read_csv(config.data_dir / "train" / "dense_train.csv")
-            dense_val = pd.read_csv(config.data_dir / "val" / "dense_val.csv")
-            dense_test = pd.read_csv(config.data_dir / "test" / "dense_test.csv")
-            cs_train = pd.read_csv(config.data_dir / "train" / "cold_start_train.csv")
-            cs_val = pd.read_csv(config.data_dir / "val" / "cold_start_val.csv")
-            cs_test = pd.read_csv(config.data_dir / "test" / "cold_start_test.csv")
+            logging.info("Train/val/test splits already exist in data directory.")
+            return
     else:
-        dense_train, dense_val, dense_test, cs_train, cs_val, cs_test = createTrainValTestSplits()
+        _, _, _, _, _, _ = createTrainValTestSplits()
     
-    return dense_train, dense_val, dense_test, cs_train, cs_val, cs_test
-
-# def transform(model_name="sasrec"):
-#     """Step 4: Transform raw data into format suitable for model training."""
-#     logging.info("Transforming raw data...")
-#     # Example transformation: create user-item interaction matrix, encode categorical variables, etc.
-#     return raw_data
+    return 
 
 
 # def runSASRec():
@@ -111,7 +106,10 @@ def main():
         runRawEDA(cs_sample_df, cold_start=True)
         runRawEDA(dense_sample_df)
 
-        dense_train, dense_val, dense_test, cs_train, cs_val, cs_test = trainValTestSplit()
+        trainValTestSplit()
+
+        runSASRecPipeline("dense")
+        runSASRecPipeline("cold_start")
 
 
         # processed_data = transform(raw_data)
