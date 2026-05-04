@@ -2,7 +2,7 @@
 This file define functions that are used across the repository.
 """
 
-import matplotlib as plt
+import matplotlib.pyplot as plt
 from config import GlobalConfig, SASRecModelConfig, GPT4RecModelConfig
 
 

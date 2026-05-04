@@ -26,8 +26,9 @@ class SASRecModelConfig:
 	num_blocks: int = 2
 	num_heads: int = 1
 	dropout_rate: float = 0.5
-	
-    num_preds: int = 1000  # number of items to return in the ranked list of predictions for each user (for evaluation)
+	num_preds: int = 10  # number of items to return in the ranked list of predictions for each user (for evaluation)
+	train_eval_every: int = 5  # epochs between in-training eval of model performance
+	val_eval_max_users: int = 512  # max val users scored per in-training eval (speeds up eval to have a cap)
 
 
 @dataclass

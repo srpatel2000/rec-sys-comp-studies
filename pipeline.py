@@ -93,20 +93,19 @@ def runEval(model_name, data_type, holdout_method):
 
     logging.info(f"Running evaluation on {data_type} {holdout_method} dataset using {model_name} model...")
 
-    preds_file_path = config.outputs_dir / f"{data_type}_{model_name.lower()}_{holdout_method}_predictions.csv"
+    preds_file_path = config.data_dir / "outputs" / model_name / f"{data_type}_{holdout_method}_predictions.csv"
     try:
         predictions_df = pd.read_csv(preds_file_path)
     except FileNotFoundError:
         logging.error(f"Predictions file not found: {preds_file_path}. Make sure model is run and predictions are saved before running evaluation.")
         return
 
-    predictions = predictions_df["top_k_asins"].tolist()
-    actuals = predictions_df["ground_truth_asins"].tolist() # TODO: don't have in the current predictions_df
-    step_size = 10
-    rel_scores = predictions_df["top_k_rel_scores"].tolist() # TODO: don't have in the current predictions_df
-    ideal_rel_scores = predictions_df["top_k_ideal_rel_scores"].tolist() # TODO: don't have in the current predictions_df
+    if predictions_df.empty:
+        logging.warning(f"No predictions in {preds_file_path}; skipping evaluation.")
+        return
 
-    evalPipeline(predictions, actuals, step_size, rel_scores, ideal_rel_scores)
+    export_prefix = f"{model_name}_{data_type}_{holdout_method}"
+    evalPipeline(predictions_df, export_prefix=export_prefix)
 
 
 def main():
@@ -123,10 +122,10 @@ def main():
         ########## SASRec ##########
         runSASRecPipeline("dense")
         runSASRecPipeline("cold_start")
-        runEval("SASRec", "dense", "val")
-        runEval("SASRec", "cold_start", "val")
-        runEval("SASRec", "dense", "test")
-        runEval("SASRec", "cold_start", "test")
+        runEval("sasrec", "dense", "val")
+        runEval("sasrec", "cold_start", "val")
+        runEval("sasrec", "dense", "test")
+        runEval("sasrec", "cold_start", "test")
 
         ########## GPT4Rec ##########
         # runGPT4RecPipeline("dense")

@@ -12,6 +12,9 @@ def random_neq(l, r, s):
 def sample_function(user_train, usernum, itemnum, batch_size, maxlen, result_queue, SEED):
     def sample():
 
+        """Changed made by SP: The original function used only users with 2+ items to train on. This was preventing users with only 1 item in train from being trained on.
+        Now, users with only 1 item in train are also trained on."""
+
         user = np.random.randint(1, usernum + 1)
         while len(user_train[user]) <= 1: user = np.random.randint(1, usernum + 1)
 
