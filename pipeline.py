@@ -12,8 +12,10 @@ from data_loading import *
 from train_val_test_split import *
 from eda import *
 from utils import *
+from baseline_models.random_catalog_baseline import runBaselinePipeline
 from custom_sasrec_funcs import runSASRecPipeline
-from eval_metrics import evalPipeline
+from custom_gpt4rec_funcs import runGPT4RecPipeline
+from eval_metrics import evalPipeline, refresh_combined_dense_cold_train_eval_plots
 
 import time
 import logging
@@ -119,24 +121,37 @@ def main():
 
         trainValTestSplit()
 
-        ########## SASRec ##########
-        runSASRecPipeline("dense")
-        runSASRecPipeline("cold_start")
-        runEval("sasrec", "dense", "val")
-        runEval("sasrec", "cold_start", "val")
-        runEval("sasrec", "dense", "test")
-        runEval("sasrec", "cold_start", "test")
+        ########## BASELINE MODELS ##########
+        # runBaselinePipeline("dense")
+        # runBaselinePipeline("cold_start")
+        # runEval("baseline", "dense", "val")
+        # runEval("baseline", "cold_start", "val")
+        # runEval("baseline", "dense", "test")
+        # runEval("baseline", "cold_start", "test")
 
-        ########## GPT4Rec ##########
-        # runGPT4RecPipeline("dense")
-        # runGPT4RecPipeline("cold_start")
-        # runEval("GPT4Rec", "dense", "val")
-        # runEval("GPT4Rec", "cold_start", "val")
-        # runEval("GPT4Rec", "dense", "test")
-        # runEval("GPT4Rec", "cold_start", "test")
+        ########## SASRec ##########
+        # runSASRecPipeline("dense")
+        # runSASRecPipeline("cold_start")
+        # runEval("sasrec", "dense", "val")
+        # runEval("sasrec", "cold_start", "val")
+        # runEval("sasrec", "dense", "test")
+        # runEval("sasrec", "cold_start", "test")
+
+        # ########## GPT4Rec ##########
+        runGPT4RecPipeline("dense")
+        runGPT4RecPipeline("cold_start")
+        runEval("gpt4rec", "dense", "val")
+        runEval("gpt4rec", "cold_start", "val")
+        runEval("gpt4rec", "dense", "test")
+        runEval("gpt4rec", "cold_start", "test")
 
         logging.info("Pipeline completed successfully.")
-        
+
+        # Dense vs cold_start val@10 training curves (reads CSVs under trained_models/eval_metrics).
+        curve_dir = str(config.trained_models_dir / "eval_metrics")
+        refresh_combined_dense_cold_train_eval_plots(curve_dir, "sasrec")
+        refresh_combined_dense_cold_train_eval_plots(curve_dir, "gpt4rec")
+
     except Exception as e:
         logging.error(f"Pipeline failed: {e}")
         sys.exit(1)

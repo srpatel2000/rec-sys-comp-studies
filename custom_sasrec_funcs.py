@@ -11,7 +11,13 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # silences info and warning logs
 import tensorflow.compat.v1 as tf
 
 from config import GlobalConfig, SASRecModelConfig
-from eval_metrics import K_EVAL, append_train_eval_row, macro_metrics_at_k_items, refresh_train_eval_plots
+from eval_metrics import (
+    K_EVAL,
+    append_train_eval_row,
+    macro_metrics_at_k_items,
+    refresh_combined_dense_cold_train_eval_plots,
+    refresh_train_eval_plots,
+)
 from sas_rec.sampler import WarpSampler
 from sas_rec.model import Model
 
@@ -45,6 +51,9 @@ def perUserSequence(data, user_int_id, item_int_id):
     for user_id, group in data.groupby("user_int_id"):
         sorted_group = group.sort_values("timestamp")
         user_sequences[user_id] = sorted_group["item_int_id"].tolist()
+
+    int_to_user = {v: k for k, v in user_int_id.items()}
+    int_to_item = {v: k for k, v in item_int_id.items()}
 
     return user_sequences
 
@@ -128,6 +137,7 @@ def trainSASRec(
             if m is not None:
                 append_train_eval_row(curve_csv, epoch, m)
                 refresh_train_eval_plots(curve_csv, plot_base)
+                refresh_combined_dense_cold_train_eval_plots(curve_dir, "sasrec")
                 logging.info(
                     f"val @10: P={m['precision']:.4f} R={m['recall']:.4f} NDCG={m['ndcg']:.4f} (n={m['n_users']})"
                 )
@@ -263,19 +273,24 @@ def runSASRecPipeline(data_type="dense"):
     # step 1: build ID mappings from all data
     all_data = pd.concat([train_df, val_df, test_df], ignore_index=True)
     user_int_id, item_int_id = buildIDMappings(all_data)
+    print(f"First 10 Users Dictionary: {dict(list(user_int_id.items())[:10])}")
+    print(f"First 10 Items Dictionary: {dict(list(item_int_id.items())[:10])}")
     usernum = len(user_int_id)
     itemnum = len(item_int_id)
+
+    print(f"Number of Users: {usernum}")
+    print(f"Number of Items: {itemnum}")
 
     # step 2: build per-user train sequences
     user_sequences = perUserSequence(train_df.copy(), user_int_id, item_int_id)
 
-    # encode val/test dataframes with int IDs
+    # # encode val/test dataframes with int IDs
     val_df["user_int_id"] = val_df["user_id"].map(user_int_id)
     val_df["item_int_id"] = val_df["parent_asin"].map(item_int_id)
     test_df["user_int_id"] = test_df["user_id"].map(user_int_id)
     test_df["item_int_id"] = test_df["parent_asin"].map(item_int_id)
 
-    # step 3: build model and initialize session BEFORE starting sampler
+    # # step 3: build model and initialize session BEFORE starting sampler
     tf.reset_default_graph()
     model = buildSASRecModel(usernum, itemnum, args)
 
@@ -283,37 +298,37 @@ def runSASRecPipeline(data_type="dense"):
     sess.run(tf.global_variables_initializer())
     logging.info("Session created and variables initialized.")
 
-    # step 4: create sampler AFTER session is ready (avoids multiprocessing deadlock on MacOS)
-    sampler = trainingBatches(user_sequences, usernum, itemnum, args.batch_size, args.maxlen)
+    # # step 4: create sampler AFTER session is ready (avoids multiprocessing deadlock on MacOS)
+    # sampler = trainingBatches(user_sequences, usernum, itemnum, args.batch_size, args.maxlen)
 
-    curve_dir = str(config.trained_models_dir / "eval_metrics")
-    trainSASRec(
-        sess,
-        model,
-        sampler,
-        user_sequences,
-        args,
-        val_eval_df=val_df,
-        itemnum=itemnum,
-        maxlen=args.maxlen,
-        data_type=data_type,
-        curve_dir=curve_dir,
-    )
+    # curve_dir = str(config.trained_models_dir / "eval_metrics")
+    # trainSASRec(
+    #     sess,
+    #     model,
+    #     sampler,
+    #     user_sequences,
+    #     args,
+    #     val_eval_df=val_df,
+    #     itemnum=itemnum,
+    #     maxlen=args.maxlen,
+    #     data_type=data_type,
+    #     curve_dir=curve_dir,
+    # )
 
-    # step 6: val predictions
-    val_preds = predictVal(model, sess, user_sequences, val_df, itemnum, args.maxlen)
-    val_preds = convertIDBackToRaw(val_preds, user_int_id, item_int_id)
+    # # step 6: val predictions
+    # val_preds = predictVal(model, sess, user_sequences, val_df, itemnum, args.maxlen)
+    # val_preds = convertIDBackToRaw(val_preds, user_int_id, item_int_id)
 
-    # step 7: test predictions
-    test_preds = predictTest(model, sess, user_sequences, val_df, test_df, itemnum, args.maxlen)
-    test_preds = convertIDBackToRaw(test_preds, user_int_id, item_int_id)
+    # # step 7: test predictions
+    # test_preds = predictTest(model, sess, user_sequences, val_df, test_df, itemnum, args.maxlen)
+    # test_preds = convertIDBackToRaw(test_preds, user_int_id, item_int_id)
 
-    outputs_dir = config.data_dir / "outputs" / "sasrec"
-    outputs_dir.mkdir(parents=True, exist_ok=True)
-    val_preds.to_csv(outputs_dir / f"{data_type}_val_predictions.csv", index=False)
-    test_preds.to_csv(outputs_dir / f"{data_type}_test_predictions.csv", index=False)
+    # outputs_dir = config.data_dir / "outputs" / "sasrec"
+    # outputs_dir.mkdir(parents=True, exist_ok=True)
+    # val_preds.to_csv(outputs_dir / f"{data_type}_val_predictions.csv", index=False)
+    # test_preds.to_csv(outputs_dir / f"{data_type}_test_predictions.csv", index=False)
 
-    sess.close()
-    logging.info(f"SASRec pipeline complete for {data_type}. predictions saved to {outputs_dir}")
+    # sess.close()
+    # logging.info(f"SASRec pipeline complete for {data_type}. predictions saved to {outputs_dir}")
 
-    return val_preds, test_preds 
+    # return val_preds, test_preds 

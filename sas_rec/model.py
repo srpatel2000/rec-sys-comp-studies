@@ -3,6 +3,8 @@ import os
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+tf.disable_eager_execution()
 
 
 class Model():
@@ -20,7 +22,7 @@ class Model():
         with tf.variable_scope("SASRec", reuse=reuse):
             # sequence embedding, item embedding table
             self.seq, item_emb_table = embedding(self.input_seq,
-                                                 vocab_size=itemnum + 1,
+                                                 vocab_size=itemnum + 1, 
                                                  num_units=args.hidden_units,
                                                  zero_pad=True,
                                                  scale=True,
@@ -30,6 +32,8 @@ class Model():
                                                  reuse=reuse
                                                  )
             print("[Model] Finished input/item embedding")
+            print(f"Sequence Embedding: {self.seq}")
+            print(f"Item Embedding Table: {item_emb_table}")
 
             # Positional Encoding
             t, pos_emb_table = embedding(
@@ -52,7 +56,6 @@ class Model():
             print("[Model] Finished dropout and masking")
 
             # Build blocks
-
             for i in range(args.num_blocks):
                 with tf.variable_scope("num_blocks_%d" % i):
 

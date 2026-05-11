@@ -4,10 +4,11 @@ import csv
 import json
 import math
 import os
+import matplotlib.pyplot as plt
 
 import pandas as pd
 
-from utils import createLineChart
+from utils import createLineChart, createLineChartMulti
 
 K_EVAL = 10
 
@@ -137,6 +138,50 @@ def refresh_train_eval_plots(csv_path, plot_basename):
         title = f"{name.capitalize()}@10 vs epoch ({os.path.basename(plot_basename)})"
         path = os.path.join(out_dir, f"{plot_basename}_{name}_at10_vs_epoch.png")
         createLineChart(x, y, title, "Epoch", name.capitalize(), path)
+
+
+def refresh_combined_dense_cold_train_eval_plots(curve_dir, model_prefix):
+    """Overlay dense vs cold_start val@10 training curves (one PNG per metric).
+
+    Expects CSVs: ``{model_prefix}_dense_val_at10_train.csv`` and
+    ``{model_prefix}_cold_start_val_at10_train.csv`` under ``curve_dir``.
+    Writes: ``{model_prefix}_val_at10_combined_<metric>_at10_vs_epoch.png``.
+    """
+    curve_dir = os.path.expanduser(str(curve_dir))
+    if not curve_dir or not os.path.isdir(curve_dir):
+        return
+
+    paths_labels = [
+        (os.path.join(curve_dir, f"{model_prefix}_dense_val_at10_train.csv"), "dense"),
+        (os.path.join(curve_dir, f"{model_prefix}_cold_start_val_at10_train.csv"), "cold_start"),
+    ]
+    metric_cols = [
+        ("precision_at_10", "precision", "Precision"),
+        ("recall_at_10", "recall", "Recall"),
+        ("ndcg_at_10", "ndcg", "NDCG"),
+    ]
+
+    for col, short, y_title in metric_cols:
+        series = []
+        for csv_path, split_label in paths_labels:
+            if not os.path.isfile(csv_path):
+                continue
+            df = pd.read_csv(csv_path)
+            if df.empty or "epoch" not in df.columns or col not in df.columns:
+                continue
+            series.append({
+                "x": df["epoch"].tolist(),
+                "y": df[col].tolist(),
+                "label": split_label,
+            })
+        if len(series) == 0:
+            continue
+        title = f"{y_title}@10 vs epoch ({model_prefix}, val)"
+        out_path = os.path.join(
+            curve_dir,
+            f"{model_prefix}_val_at10_combined_{short}_at10_vs_epoch.png",
+        )
+        createLineChartMulti(series, title, "Epoch", y_title, out_path)
 
 
 def evalPipeline(predictions_df, export_prefix="", k=K_EVAL):

@@ -38,15 +38,29 @@ class GPT4RecModelConfig:
 	# Optimization
 	batch_size: int = 128
 	lr: float = 0.001
-	num_epochs: int = 201
+	num_epochs: int = 11
 	l2_emb: float = 0.0
 
-	# Architecture
-	maxlen: int = 50
-	hidden_units: int = 50
-	num_blocks: int = 2
-	num_heads: int = 1
-	dropout_rate: float = 0.5
+	# Backbone / architecture
+	hf_model_name: str = "distilgpt2"
+	maxlen: int = 40
+	num_preds: int = 10
+	n_embd: int = 768
+	initializer_range: float = 0.02
+	train_eval_every: int = 5
+	val_eval_max_users: int = 512
+
+	# Query generation + retrieval
+	num_beams: int = 2
+	num_queries_per_user: int = 2
+	max_query_tokens: int = 16
+	search_top_k: int = 50
+	bm25_k1_default: float = 1.2
+	bm25_b_default: float = 0.75
+	# bm25_k1_grid: List[float] = field(default_factory=lambda: [0.8, 1.2, 1.6])
+	# bm25_b_grid: List[float] = field(default_factory=lambda: [0.5, 0.75, 0.9])
+	bm25_k1_grid: List[float] = field(default_factory=lambda: [1.2])
+	bm25_b_grid: List[float] = field(default_factory=lambda: [0.75])
 
 
 
