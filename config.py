@@ -38,7 +38,7 @@ class GPT4RecModelConfig:
 	# Optimization
 	batch_size: int = 128
 	lr: float = 0.001
-	num_epochs: int = 50
+	num_epochs: int = 21
 	l2_emb: float = 0.0
 
 	# Backbone / architecture

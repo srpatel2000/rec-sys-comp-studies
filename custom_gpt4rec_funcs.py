@@ -212,24 +212,9 @@ def runGPT4RecPipeline(data_type="dense"):
 
     def _epoch_eval(epoch: int):
         if not sampled_prompts:
-            print(
-                f"[GPT4Rec in-training eval] epoch {epoch}: skipped (no sampled val prompts).",
-                flush=True,
-            )
             return
         if epoch % eval_every != 0 and epoch != 1:
-            print(
-                f"[GPT4Rec in-training eval] epoch {epoch}/{num_epochs}: skipped "
-                f"(only epoch 1 and epochs where epoch % train_eval_every ({eval_every}) == 0 run eval; "
-                f"{epoch} % {eval_every} = {epoch % eval_every}).",
-                flush=True,
-            )
             return
-        print(
-            f"[GPT4Rec in-training eval] epoch {epoch}/{num_epochs}: running evaluate_with_bm25 on "
-            f"{len(sampled_prompts)} users (BM25 defaults k1={args.bm25_k1_default}, b={args.bm25_b_default})...",
-            flush=True,
-        )
         default_pred = evaluate_with_bm25(
             model,
             tokenizer,
@@ -252,10 +237,6 @@ def runGPT4RecPipeline(data_type="dense"):
             time.perf_counter() - t_w,
             epoch=epoch,
             detail="eval_metrics append + png refresh",
-        )
-        print(
-            f"[GPT4Rec in-training eval] epoch {epoch}/{num_epochs}: done; train curves updated.",
-            flush=True,
         )
 
     print(f"[GPT4Rec pipeline:{data_type}] starting LM fine-tuning...", flush=True)

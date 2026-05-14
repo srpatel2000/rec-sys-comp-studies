@@ -73,11 +73,7 @@ def train_generation_model(
         )
 
     for epoch in range(1, num_epochs + 1):
-        n_steps = len(loader)
-        print(
-            f"[GPT4Rec LM] epoch {epoch}/{num_epochs} starting — {n_steps} mini-batches",
-            flush=True,
-        )
+        print(f"[GPT4Rec LM] epoch {epoch}/{num_epochs} start", flush=True)
         total_loss = 0.0
         n_batches = 0
         t_train = time.perf_counter()
@@ -111,11 +107,6 @@ def train_generation_model(
                 num_epochs,
                 mean_loss,
             )
-        print(
-            f"[GPT4Rec LM] epoch {epoch}/{num_epochs} optimization done (mean loss={mean_loss:.4f}); "
-            "running on_epoch_end callback...",
-            flush=True,
-        )
         model.eval()
         t_cb = time.perf_counter()
         if on_epoch_end is not None:
@@ -127,7 +118,10 @@ def train_generation_model(
                 epoch=epoch,
                 detail="includes in-training eval + write_train_curves when scheduled",
             )
-        print(f"[GPT4Rec LM] epoch {epoch}/{num_epochs} on_epoch_end finished.", flush=True)
+        print(
+            f"[GPT4Rec LM] epoch {epoch}/{num_epochs} done (mean_loss={mean_loss:.4f})",
+            flush=True,
+        )
         model.train()
 
 
@@ -162,31 +156,12 @@ def evaluate_with_bm25(
 
     rows = []
     n = len(prompts)
-    total_batches = (n + infer_bs - 1) // infer_bs if n else 0
-    log_every = max(1, total_batches // 20) if total_batches > 20 else 1
     detail = timing_detail or (progress_label or "")
     tok_sec = 0.0
     gen_sec = 0.0
     post_sec = 0.0
 
-    if progress_label:
-        print(
-            f"[GPT4Rec eval:{progress_label}] {n} users, infer_bs={infer_bs}, "
-            f"num_beams={num_beams}, ~{total_batches} batches",
-            flush=True,
-        )
-    batch_idx = 0
     for start in range(0, n, infer_bs):
-        batch_idx += 1
-        if progress_label and (
-            batch_idx == 1 or batch_idx % log_every == 0 or start + infer_bs >= n
-        ):
-            end_u = min(start + infer_bs, n)
-            print(
-                f"[GPT4Rec eval:{progress_label}] batch {batch_idx}/{total_batches} "
-                f"(users {start + 1}-{end_u}/{n})",
-                flush=True,
-            )
         batch_prompts = prompts[start : start + infer_bs]
         batch_targets = targets[start : start + infer_bs]
         t0 = time.perf_counter()
@@ -240,9 +215,6 @@ def evaluate_with_bm25(
                 topk.extend([pad] * (num_preds - len(topk)))
             rows.append({"ground_truth_item": int(gt), "top_k_items": topk[:num_preds]})
         post_sec += time.perf_counter() - t0
-
-    if progress_label:
-        print(f"[GPT4Rec eval:{progress_label}] complete.", flush=True)
 
     if runtime_tracker is not None:
         extra = (
