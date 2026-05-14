@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -20,6 +21,7 @@ from gpt4rec.data import (
 )
 from gpt4rec.model import GPT4RecCandidateRanker, GPT4RecGenerationModel
 from gpt4rec.prompting import build_history_prompt, build_train_text
+from gpt4rec.runtime_tracking import GPT4RecRuntimeTracker
 from gpt4rec.search import BM25SearchIndex
 from gpt4rec.train_eval import evaluate_with_bm25, train_generation_model, tune_bm25_params, write_train_curves
 
@@ -67,36 +69,66 @@ def runGPT4RecPipeline(data_type="dense"):
 
     config = GlobalConfig()
     args = config.model_namespace("gpt4rec")
+    tracker = GPT4RecRuntimeTracker(data_type)
 
     logging.info(f"Running GPT4Rec pipeline for {data_type} dataset...")
 
-    # load train/val/test CSVs
+    t0 = time.perf_counter()
     train_df = pd.read_csv(config.data_dir / "train" / f"{data_type}_train.csv")
     val_df = pd.read_csv(config.data_dir / "val" / f"{data_type}_val.csv")
     test_df = pd.read_csv(config.data_dir / "test" / f"{data_type}_test.csv")
+    tracker.log(
+        "io_load_train_val_test_csv",
+        time.perf_counter() - t0,
+        detail=f"rows train={len(train_df)} val={len(val_df)} test={len(test_df)}",
+    )
 
-    # step 1: build ID mappings for all of the data
+    t0 = time.perf_counter()
     all_data = pd.concat([train_df, val_df, test_df], ignore_index=True)
-    user2id, item2id = buildIDMappings(all_data) # use same methodology as SASRec to build mappings
+    user2id, item2id = buildIDMappings(all_data)  # use same methodology as SASRec to build mappings
     int_to_item = int_to_asin_map(item2id)
+    tracker.log(
+        "data_concat_and_id_mappings",
+        time.perf_counter() - t0,
+        detail=f"n_users={len(user2id)} n_items={len(item2id)}",
+    )
 
-    # step 2: build item text mappings
+    t0 = time.perf_counter()
     item_text_by_asin = build_item_texts(all_data)
     item_text_by_item_id = {
         item2id[asin]: txt for asin, txt in item_text_by_asin.items() if asin in item2id
     }
+    tracker.log(
+        "data_build_item_title_texts",
+        time.perf_counter() - t0,
+        detail=f"n_asin_texts={len(item_text_by_asin)}",
+    )
 
+    t0 = time.perf_counter()
     user_hist = build_user_histories(train_df, user2id, item2id)
     train_examples = build_examples_for_training(train_df, user2id, item2id, item_text_by_asin)
     val_examples = build_examples_for_holdout(
         val_df, user_hist, user2id, item2id, item_text_by_asin, int_to_item
     )
+    tracker.log(
+        "data_user_histories_and_train_val_examples",
+        time.perf_counter() - t0,
+        detail=f"n_train_examples={len(train_examples)} n_val_examples={len(val_examples)}",
+    )
 
+    t0 = time.perf_counter()
     tokenizer = GPT2Tokenizer.from_pretrained(args.hf_model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     # Decoder-only: batch generation must pad on the left so the last real token aligns.
     tokenizer.padding_side = "left"
+    tracker.log(
+        "hf_tokenizer_from_pretrained",
+        time.perf_counter() - t0,
+        detail=str(args.hf_model_name),
+    )
+
+    t0 = time.perf_counter()
     lm = GPT2LMHeadModel.from_pretrained(args.hf_model_name)
 
     class _TmpCfg:
@@ -110,17 +142,42 @@ def runGPT4RecPipeline(data_type="dense"):
     tmp.initializer_range = args.initializer_range
 
     model = GPT4RecGenerationModel(tmp, lm)
+    tracker.log(
+        "hf_lm_from_pretrained_and_wrap_gpt4rec_generation_model",
+        time.perf_counter() - t0,
+        detail=str(args.hf_model_name),
+    )
+
+    t0 = time.perf_counter()
     device = resolve_gpt4rec_device(config)
     model.to(device)
+    tracker.log(
+        "device_resolve_and_model_to_device",
+        time.perf_counter() - t0,
+        detail=str(device),
+    )
 
+    t0 = time.perf_counter()
     search_index = BM25SearchIndex(item_text_by_item_id, args.bm25_k1_default, args.bm25_b_default)
     ranker = GPT4RecCandidateRanker()
+    tracker.log(
+        "bm25_index_build_and_ranker_init",
+        time.perf_counter() - t0,
+        detail=f"n_indexed_items={len(search_index.doc_tokens)}",
+    )
 
+    t0 = time.perf_counter()
     val_prompts = [build_history_prompt(e.history_titles) for e in val_examples]
     val_targets = [e.target_item_int_id for e in val_examples]
     train_texts = [build_train_text(e.history_titles, e.target_title) for e in train_examples]
+    tracker.log(
+        "prompting_build_history_prompts_train_texts",
+        time.perf_counter() - t0,
+        detail=f"n_val_prompts={len(val_prompts)} n_train_texts={len(train_texts)}",
+    )
 
     # In-training style curve artifact parity
+    t_curve = time.perf_counter()
     curve_dir = config.trained_models_dir / "eval_metrics"
     curve_dir.mkdir(parents=True, exist_ok=True)
     curve_csv = str(curve_dir / f"gpt4rec_{data_type}_val_at10_train.csv")
@@ -138,6 +195,11 @@ def runGPT4RecPipeline(data_type="dense"):
     else:
         sampled_prompts = val_prompts
         sampled_targets = val_targets
+    tracker.log(
+        "in_train_eval_metrics_init_and_val_subsample",
+        time.perf_counter() - t_curve,
+        detail=f"val_cap={val_cap} sampled_val_users={len(sampled_prompts)}",
+    )
 
     eval_every = max(1, int(getattr(args, "train_eval_every", 5)))
     num_epochs = max(1, int(getattr(args, "num_epochs", 1)))
@@ -180,22 +242,41 @@ def runGPT4RecPipeline(data_type="dense"):
             args.bm25_k1_default,
             args.bm25_b_default,
             progress_label=f"in-train-val-epoch-{epoch}",
+            runtime_tracker=tracker,
+            timing_detail=f"in_train_val_epoch_{epoch}",
         )
+        t_w = time.perf_counter()
         write_train_curves(curve_csv, plot_base, epoch, default_pred)
+        tracker.log(
+            "in_train_write_train_curves_and_plots",
+            time.perf_counter() - t_w,
+            epoch=epoch,
+            detail="eval_metrics append + png refresh",
+        )
         print(
             f"[GPT4Rec in-training eval] epoch {epoch}/{num_epochs}: done; train curves updated.",
             flush=True,
         )
 
     print(f"[GPT4Rec pipeline:{data_type}] starting LM fine-tuning...", flush=True)
-    train_generation_model(model, tokenizer, train_texts, args, device, on_epoch_end=_epoch_eval)
+    train_generation_model(
+        model, tokenizer, train_texts, args, device, on_epoch_end=_epoch_eval, runtime_tracker=tracker
+    )
     print(
         f"[GPT4Rec pipeline:{data_type}] LM fine-tuning finished; starting BM25 hyperparameter search...",
         flush=True,
     )
 
     best_k1, best_b = tune_bm25_params(
-        model, tokenizer, val_prompts, val_targets, search_index, ranker, args, device
+        model,
+        tokenizer,
+        val_prompts,
+        val_targets,
+        search_index,
+        ranker,
+        args,
+        device,
+        runtime_tracker=tracker,
     )
     logging.info(f"BM25 tuned params for {data_type}: k1={best_k1}, b={best_b}")
 
@@ -217,10 +298,13 @@ def runGPT4RecPipeline(data_type="dense"):
         best_k1,
         best_b,
         progress_label=f"final-val-{data_type}",
+        runtime_tracker=tracker,
+        timing_detail="final_full_validation",
     )
     print(f"[GPT4Rec pipeline:{data_type}] final validation eval complete.", flush=True)
     val_out = to_eval_output(val_final, int_to_item)
 
+    t_testprep = time.perf_counter()
     # test prompts include val target appended when available
     test_hist = dict(user_hist)
     if not val_df.empty:
@@ -235,6 +319,11 @@ def runGPT4RecPipeline(data_type="dense"):
     )
     test_prompts = [build_history_prompt(e.history_titles) for e in test_examples]
     test_targets = [e.target_item_int_id for e in test_examples]
+    tracker.log(
+        "test_split_prompting_build_examples_and_prompts",
+        time.perf_counter() - t_testprep,
+        detail=f"n_test_examples={len(test_examples)}",
+    )
     print(
         f"[GPT4Rec pipeline:{data_type}] final test eval ({len(test_prompts)} users)...",
         flush=True,
@@ -251,6 +340,8 @@ def runGPT4RecPipeline(data_type="dense"):
         best_k1,
         best_b,
         progress_label=f"final-test-{data_type}",
+        runtime_tracker=tracker,
+        timing_detail="final_full_test",
     )
     print(f"[GPT4Rec pipeline:{data_type}] final test eval complete.", flush=True)
     test_out = to_eval_output(test_final, int_to_item)
@@ -260,9 +351,18 @@ def runGPT4RecPipeline(data_type="dense"):
     val_path = outputs_dir / f"{data_type}_val_predictions.csv"
     test_path = outputs_dir / f"{data_type}_test_predictions.csv"
     print(f"[GPT4Rec pipeline:{data_type}] writing {val_path} and {test_path} ...", flush=True)
+    t_io = time.perf_counter()
     val_out.to_csv(val_path, index=False)
     test_out.to_csv(test_path, index=False)
+    tracker.log(
+        "io_write_val_test_prediction_csvs",
+        time.perf_counter() - t_io,
+        detail=str(outputs_dir),
+    )
+
+    timing_csv = tracker.save(config.trained_models_dir)
     logging.info(f"GPT4Rec pipeline complete for {data_type}. predictions saved to {outputs_dir}")
+    logging.info("GPT4Rec runtime component CSV: %s", timing_csv)
 
     return val_out, test_out
 

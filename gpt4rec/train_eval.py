@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 from typing import Callable, List, Optional, Tuple
 
 import pandas as pd
@@ -16,6 +17,7 @@ from eval_metrics import (
     refresh_train_eval_plots,
 )
 from gpt4rec.model import GPT4RecCandidateRanker, GPT4RecGenerationModel
+from gpt4rec.runtime_tracking import GPT4RecRuntimeTracker
 from gpt4rec.search import BM25SearchIndex, aggregate_candidates
 
 
@@ -39,6 +41,7 @@ def train_generation_model(
     args,
     device: torch.device,
     on_epoch_end: Optional[Callable[[int], None]] = None,
+    runtime_tracker: Optional[GPT4RecRuntimeTracker] = None,
 ):
     """Fine-tune the LM on (prompt + target) strings; optional per-epoch callback."""
 
@@ -55,12 +58,19 @@ def train_generation_model(
     batch_size = max(1, int(getattr(args, "batch_size", 8)))
     num_epochs = max(1, int(getattr(args, "num_epochs", 1)))
 
+    t_enc = time.perf_counter()
     input_ids_all, attn_all = build_lm_encodings(tokenizer, train_texts, max_len)
     labels = input_ids_all.clone()
     labels[attn_all == 0] = -100
 
     ds = TensorDataset(input_ids_all, attn_all, labels)
     loader = DataLoader(ds, batch_size=batch_size, shuffle=True, drop_last=False)
+    if runtime_tracker is not None:
+        runtime_tracker.log(
+            "lm_tokenize_encode_and_build_dataloader",
+            time.perf_counter() - t_enc,
+            detail=f"max_len={max_len} batch_size={batch_size} n_train_texts={len(train_texts)}",
+        )
 
     for epoch in range(1, num_epochs + 1):
         n_steps = len(loader)
@@ -70,6 +80,7 @@ def train_generation_model(
         )
         total_loss = 0.0
         n_batches = 0
+        t_train = time.perf_counter()
         for input_ids, attention_mask, labels_b in loader:
             input_ids = input_ids.to(device)
             attention_mask = attention_mask.to(device)
@@ -85,6 +96,13 @@ def train_generation_model(
             optimizer.step()
             total_loss += float(loss.item())
             n_batches += 1
+        if runtime_tracker is not None:
+            runtime_tracker.log(
+                "lm_epoch_optimizer_forward_backward",
+                time.perf_counter() - t_train,
+                epoch=epoch,
+                detail=f"n_batches={n_batches}",
+            )
         mean_loss = total_loss / n_batches if n_batches else 0.0
         if n_batches:
             logging.info(
@@ -99,8 +117,16 @@ def train_generation_model(
             flush=True,
         )
         model.eval()
+        t_cb = time.perf_counter()
         if on_epoch_end is not None:
             on_epoch_end(epoch)
+        if runtime_tracker is not None:
+            runtime_tracker.log(
+                "lm_epoch_on_epoch_end_callback",
+                time.perf_counter() - t_cb,
+                epoch=epoch,
+                detail="includes in-training eval + write_train_curves when scheduled",
+            )
         print(f"[GPT4Rec LM] epoch {epoch}/{num_epochs} on_epoch_end finished.", flush=True)
         model.train()
 
@@ -118,9 +144,12 @@ def evaluate_with_bm25(
     k1: float,
     b: float,
     progress_label: Optional[str] = None,
+    runtime_tracker: Optional[GPT4RecRuntimeTracker] = None,
+    timing_detail: str = "",
 ) -> pd.DataFrame:
     """Generate multi-query beam strings, BM25 aggregate, rank top-k item ints."""
 
+    t_setup = time.perf_counter()
     search_index.set_params(k1, b)
     model.eval()
     num_preds = max(1, int(getattr(args, "num_preds", 10)))
@@ -129,11 +158,17 @@ def evaluate_with_bm25(
     max_new = max(1, int(getattr(args, "max_query_tokens", 16)))
     search_top_k = max(10, int(getattr(args, "search_top_k", 100)))
     infer_bs = max(1, min(8, int(getattr(args, "batch_size", 8))))
+    setup_sec = time.perf_counter() - t_setup
 
     rows = []
     n = len(prompts)
     total_batches = (n + infer_bs - 1) // infer_bs if n else 0
     log_every = max(1, total_batches // 20) if total_batches > 20 else 1
+    detail = timing_detail or (progress_label or "")
+    tok_sec = 0.0
+    gen_sec = 0.0
+    post_sec = 0.0
+
     if progress_label:
         print(
             f"[GPT4Rec eval:{progress_label}] {n} users, infer_bs={infer_bs}, "
@@ -154,6 +189,7 @@ def evaluate_with_bm25(
             )
         batch_prompts = prompts[start : start + infer_bs]
         batch_targets = targets[start : start + infer_bs]
+        t0 = time.perf_counter()
         enc = tokenizer(
             batch_prompts,
             padding=True,
@@ -161,10 +197,12 @@ def evaluate_with_bm25(
             max_length=int(getattr(args, "maxlen", 128)),
             return_tensors="pt",
         )
+        tok_sec += time.perf_counter() - t0
         input_ids = enc["input_ids"].to(device)
         attention_mask = enc["attention_mask"].to(device)
         prompt_len = int(input_ids.shape[1])
 
+        t0 = time.perf_counter()
         gen = model.generate_queries(
             input_ids,
             attention_mask=attention_mask,
@@ -172,7 +210,9 @@ def evaluate_with_bm25(
             num_return_sequences=num_queries,
             max_new_tokens=max_new,
         )
+        gen_sec += time.perf_counter() - t0
 
+        t0 = time.perf_counter()
         for j, gt in enumerate(batch_targets):
             user_queries = []
             for r in range(num_queries):
@@ -199,9 +239,30 @@ def evaluate_with_bm25(
                 pad = topk[0] if topk else int(gt)
                 topk.extend([pad] * (num_preds - len(topk)))
             rows.append({"ground_truth_item": int(gt), "top_k_items": topk[:num_preds]})
+        post_sec += time.perf_counter() - t0
 
     if progress_label:
         print(f"[GPT4Rec eval:{progress_label}] complete.", flush=True)
+
+    if runtime_tracker is not None:
+        extra = (
+            f"n_users={n} infer_bs={infer_bs} num_beams={num_beams} "
+            f"num_queries={num_queries} search_top_k={search_top_k} k1={k1} b={b}"
+        )
+        d = f"{detail}; {extra}" if detail else extra
+        runtime_tracker.log("eval_run_setup_params", setup_sec, detail=d)
+        runtime_tracker.log("eval_batch_prompt_tokenize", tok_sec, detail=d)
+        runtime_tracker.log("eval_lm_beam_generate", gen_sec, detail=d)
+        runtime_tracker.log(
+            "eval_decode_queries_bm25_aggregate_rank",
+            post_sec,
+            detail=d,
+        )
+        runtime_tracker.log(
+            "eval_with_bm25_total",
+            setup_sec + tok_sec + gen_sec + post_sec,
+            detail=d,
+        )
     return pd.DataFrame(rows)
 
 
@@ -214,9 +275,11 @@ def tune_bm25_params(
     ranker: GPT4RecCandidateRanker,
     args,
     device: torch.device,
+    runtime_tracker: Optional[GPT4RecRuntimeTracker] = None,
 ) -> Tuple[float, float]:
     """Grid-search BM25 (k1, b) on val using macro NDCG@10 on int predictions."""
 
+    t_tune = time.perf_counter()
     best_k1 = float(getattr(args, "bm25_k1_default", 1.2))
     best_b = float(getattr(args, "bm25_b_default", 0.75))
     best_ndcg = -1.0
@@ -249,6 +312,8 @@ def tune_bm25_params(
                 float(k1),
                 float(b),
                 progress_label=f"BM25-tune-{trial}/{n_trials}-k1={k1}-b={b}",
+                runtime_tracker=runtime_tracker,
+                timing_detail=f"bm25_tune_trial_{trial}_of_{n_trials}",
             )
             m = macro_metrics_at_k_items(pred_df)
             if m is None:
@@ -269,6 +334,12 @@ def tune_bm25_params(
         f"[GPT4Rec BM25 tune] finished. chosen k1={best_k1} b={best_b} (best ndcg={best_ndcg:.4f}).",
         flush=True,
     )
+    if runtime_tracker is not None:
+        runtime_tracker.log(
+            "bm25_grid_search_outer_loop_total",
+            time.perf_counter() - t_tune,
+            detail=f"n_trials={n_trials} val_users={len(val_prompts)}",
+        )
     return best_k1, best_b
 
 
