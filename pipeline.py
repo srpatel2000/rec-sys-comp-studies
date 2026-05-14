@@ -150,7 +150,7 @@ def main():
         # Dense vs cold_start val@10 training curves (reads CSVs under trained_models/eval_metrics).
         curve_dir = str(config.trained_models_dir / "eval_metrics")
         refresh_combined_dense_cold_train_eval_plots(curve_dir, "sasrec")
-        refresh_combined_dense_cold_train_eval_plots(curve_dir, "gpt4rec")
+        # refresh_combined_dense_cold_train_eval_plots(curve_dir, "gpt4rec")
 
     except Exception as e:
         logging.error(f"Pipeline failed: {e}")

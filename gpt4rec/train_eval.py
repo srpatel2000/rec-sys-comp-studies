@@ -44,6 +44,7 @@ def train_generation_model(
 
     if not train_texts:
         logging.warning("train_generation_model: no training texts; skipping.")
+        print("[GPT4Rec LM] no training texts; skipping optimization.", flush=True)
         if on_epoch_end:
             on_epoch_end(1)
         return
@@ -62,6 +63,11 @@ def train_generation_model(
     loader = DataLoader(ds, batch_size=batch_size, shuffle=True, drop_last=False)
 
     for epoch in range(1, num_epochs + 1):
+        n_steps = len(loader)
+        print(
+            f"[GPT4Rec LM] epoch {epoch}/{num_epochs} starting — {n_steps} mini-batches",
+            flush=True,
+        )
         total_loss = 0.0
         n_batches = 0
         for input_ids, attention_mask, labels_b in loader:
@@ -79,16 +85,23 @@ def train_generation_model(
             optimizer.step()
             total_loss += float(loss.item())
             n_batches += 1
+        mean_loss = total_loss / n_batches if n_batches else 0.0
         if n_batches:
             logging.info(
                 "GPT4Rec LM epoch %d/%d mean loss=%.4f",
                 epoch,
                 num_epochs,
-                total_loss / n_batches,
+                mean_loss,
             )
+        print(
+            f"[GPT4Rec LM] epoch {epoch}/{num_epochs} optimization done (mean loss={mean_loss:.4f}); "
+            "running on_epoch_end callback...",
+            flush=True,
+        )
         model.eval()
         if on_epoch_end is not None:
             on_epoch_end(epoch)
+        print(f"[GPT4Rec LM] epoch {epoch}/{num_epochs} on_epoch_end finished.", flush=True)
         model.train()
 
 
@@ -104,6 +117,7 @@ def evaluate_with_bm25(
     device: torch.device,
     k1: float,
     b: float,
+    progress_label: Optional[str] = None,
 ) -> pd.DataFrame:
     """Generate multi-query beam strings, BM25 aggregate, rank top-k item ints."""
 
@@ -118,7 +132,26 @@ def evaluate_with_bm25(
 
     rows = []
     n = len(prompts)
+    total_batches = (n + infer_bs - 1) // infer_bs if n else 0
+    log_every = max(1, total_batches // 20) if total_batches > 20 else 1
+    if progress_label:
+        print(
+            f"[GPT4Rec eval:{progress_label}] {n} users, infer_bs={infer_bs}, "
+            f"num_beams={num_beams}, ~{total_batches} batches",
+            flush=True,
+        )
+    batch_idx = 0
     for start in range(0, n, infer_bs):
+        batch_idx += 1
+        if progress_label and (
+            batch_idx == 1 or batch_idx % log_every == 0 or start + infer_bs >= n
+        ):
+            end_u = min(start + infer_bs, n)
+            print(
+                f"[GPT4Rec eval:{progress_label}] batch {batch_idx}/{total_batches} "
+                f"(users {start + 1}-{end_u}/{n})",
+                flush=True,
+            )
         batch_prompts = prompts[start : start + infer_bs]
         batch_targets = targets[start : start + infer_bs]
         enc = tokenizer(
@@ -167,6 +200,8 @@ def evaluate_with_bm25(
                 topk.extend([pad] * (num_preds - len(topk)))
             rows.append({"ground_truth_item": int(gt), "top_k_items": topk[:num_preds]})
 
+    if progress_label:
+        print(f"[GPT4Rec eval:{progress_label}] complete.", flush=True)
     return pd.DataFrame(rows)
 
 
@@ -187,9 +222,21 @@ def tune_bm25_params(
     best_ndcg = -1.0
     k1_grid = list(getattr(args, "bm25_k1_grid", [0.8, 1.2, 1.6]))
     b_grid = list(getattr(args, "bm25_b_grid", [0.5, 0.75, 0.9]))
+    n_trials = len(k1_grid) * len(b_grid)
+    print(
+        f"[GPT4Rec BM25 tune] starting grid: {len(k1_grid)} k1 x {len(b_grid)} b = {n_trials} "
+        f"full-val evaluate_with_bm25 passes ({len(val_prompts)} val users each).",
+        flush=True,
+    )
 
+    trial = 0
     for k1 in k1_grid:
         for b in b_grid:
+            trial += 1
+            print(
+                f"[GPT4Rec BM25 tune] trial {trial}/{n_trials}: k1={k1} b={b} ...",
+                flush=True,
+            )
             pred_df = evaluate_with_bm25(
                 model,
                 tokenizer,
@@ -201,14 +248,27 @@ def tune_bm25_params(
                 device,
                 float(k1),
                 float(b),
+                progress_label=f"BM25-tune-{trial}/{n_trials}-k1={k1}-b={b}",
             )
             m = macro_metrics_at_k_items(pred_df)
             if m is None:
+                print(f"[GPT4Rec BM25 tune] trial {trial}: no metrics; skipping.", flush=True)
                 continue
-            if float(m["ndcg"]) > best_ndcg:
-                best_ndcg = float(m["ndcg"])
+            ndcg = float(m["ndcg"])
+            improved = ndcg > best_ndcg
+            if improved:
+                best_ndcg = ndcg
                 best_k1, best_b = float(k1), float(b)
+            print(
+                f"[GPT4Rec BM25 tune] trial {trial}: ndcg={ndcg:.4f} "
+                f"{'(new best)' if improved else ''} — best so far: ndcg={best_ndcg:.4f} k1={best_k1} b={best_b}",
+                flush=True,
+            )
 
+    print(
+        f"[GPT4Rec BM25 tune] finished. chosen k1={best_k1} b={best_b} (best ndcg={best_ndcg:.4f}).",
+        flush=True,
+    )
     return best_k1, best_b
 
 

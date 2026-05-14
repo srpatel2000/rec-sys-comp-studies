@@ -14,6 +14,7 @@ from config import GlobalConfig, SASRecModelConfig
 from eval_metrics import (
     K_EVAL,
     append_train_eval_row,
+    eval_artifact_path,
     macro_metrics_at_k_items,
     refresh_combined_dense_cold_train_eval_plots,
     refresh_train_eval_plots,
@@ -98,17 +99,18 @@ def trainSASRec(
     num_batches = max(1, len([u for u in user_sequences if len(user_sequences[u]) > 1]) // args.batch_size)
     train_start = time.perf_counter()
 
-    curve_csv = None
-    plot_base = None
-    eval_every = max(1, int(getattr(args, "train_eval_every", 5)))
+    curve_csv = None # tracks val@10 metrics for each epoch
+    plot_base = None # base name for plots
+    eval_every = max(1, int(getattr(args, "train_eval_every", 5))) 
     val_cap = max(1, int(getattr(args, "val_eval_max_users", 512)))
 
     if curve_dir and data_type and val_eval_df is not None and len(val_eval_df) > 0 and itemnum and maxlen:
         os.makedirs(curve_dir, exist_ok=True)
         curve_csv = os.path.join(curve_dir, f"sasrec_{data_type}_val_at10_train.csv")
         plot_base = f"sasrec_{data_type}_val_at10"
-        if os.path.isfile(curve_csv):
-            os.remove(curve_csv)
+        artifact_csv = eval_artifact_path(curve_csv)
+        if os.path.isfile(artifact_csv):
+            os.remove(artifact_csv)
     elif curve_dir and data_type:
         logging.info("Skipping in-training val @10 curve: no val rows for this dataset.")
 
@@ -290,7 +292,7 @@ def runSASRecPipeline(data_type="dense"):
     test_df["user_int_id"] = test_df["user_id"].map(user_int_id)
     test_df["item_int_id"] = test_df["parent_asin"].map(item_int_id)
 
-    # # step 3: build model and initialize session BEFORE starting sampler
+    # step 3: build model and initialize session BEFORE starting sampler
     tf.reset_default_graph()
     model = buildSASRecModel(usernum, itemnum, args)
 
@@ -298,37 +300,37 @@ def runSASRecPipeline(data_type="dense"):
     sess.run(tf.global_variables_initializer())
     logging.info("Session created and variables initialized.")
 
-    # # step 4: create sampler AFTER session is ready (avoids multiprocessing deadlock on MacOS)
-    # sampler = trainingBatches(user_sequences, usernum, itemnum, args.batch_size, args.maxlen)
+    # step 4: create sampler AFTER session is ready (avoids multiprocessing deadlock on MacOS)
+    sampler = trainingBatches(user_sequences, usernum, itemnum, args.batch_size, args.maxlen)
 
-    # curve_dir = str(config.trained_models_dir / "eval_metrics")
-    # trainSASRec(
-    #     sess,
-    #     model,
-    #     sampler,
-    #     user_sequences,
-    #     args,
-    #     val_eval_df=val_df,
-    #     itemnum=itemnum,
-    #     maxlen=args.maxlen,
-    #     data_type=data_type,
-    #     curve_dir=curve_dir,
-    # )
+    curve_dir = str(config.trained_models_dir / "eval_metrics")
+    trainSASRec(
+        sess,
+        model,
+        sampler,
+        user_sequences,
+        args,
+        val_eval_df=val_df,
+        itemnum=itemnum,
+        maxlen=args.maxlen,
+        data_type=data_type,
+        curve_dir=curve_dir,
+    )
 
-    # # step 6: val predictions
-    # val_preds = predictVal(model, sess, user_sequences, val_df, itemnum, args.maxlen)
-    # val_preds = convertIDBackToRaw(val_preds, user_int_id, item_int_id)
+    # step 6: val predictions
+    val_preds = predictVal(model, sess, user_sequences, val_df, itemnum, args.maxlen)
+    val_preds = convertIDBackToRaw(val_preds, user_int_id, item_int_id)
 
-    # # step 7: test predictions
-    # test_preds = predictTest(model, sess, user_sequences, val_df, test_df, itemnum, args.maxlen)
-    # test_preds = convertIDBackToRaw(test_preds, user_int_id, item_int_id)
+    # step 7: test predictions
+    test_preds = predictTest(model, sess, user_sequences, val_df, test_df, itemnum, args.maxlen)
+    test_preds = convertIDBackToRaw(test_preds, user_int_id, item_int_id)
 
-    # outputs_dir = config.data_dir / "outputs" / "sasrec"
-    # outputs_dir.mkdir(parents=True, exist_ok=True)
-    # val_preds.to_csv(outputs_dir / f"{data_type}_val_predictions.csv", index=False)
-    # test_preds.to_csv(outputs_dir / f"{data_type}_test_predictions.csv", index=False)
+    outputs_dir = config.data_dir / "outputs" / "sasrec"
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    val_preds.to_csv(outputs_dir / f"{data_type}_val_predictions.csv", index=False)
+    test_preds.to_csv(outputs_dir / f"{data_type}_test_predictions.csv", index=False)
 
-    # sess.close()
-    # logging.info(f"SASRec pipeline complete for {data_type}. predictions saved to {outputs_dir}")
+    sess.close()
+    logging.info(f"SASRec pipeline complete for {data_type}. predictions saved to {outputs_dir}")
 
-    # return val_preds, test_preds 
+    return val_preds, test_preds 

@@ -11,6 +11,20 @@ import pandas as pd
 from utils import createLineChart, createLineChartMulti
 
 K_EVAL = 10
+# Prepended to curve CSVs, per-epoch PNGs, combined PNGs, and post-hoc eval snapshots.
+EVAL_ARTIFACT_PREFIX = "v2_"
+
+
+def eval_artifact_path(path):
+    """Map a logical artifact path to the on-disk name for the current experiment batch."""
+
+    path = os.path.expanduser(str(path))
+    d, b = os.path.split(path)
+    if not b:
+        return path
+    if b.startswith(EVAL_ARTIFACT_PREFIX):
+        return path
+    return os.path.join(d if d else ".", EVAL_ARTIFACT_PREFIX + b)
 
 
 def _parse_list_cell(cell):
@@ -103,6 +117,7 @@ def macro_metrics_at_k_asins(predictions_df, k=K_EVAL):
 def append_train_eval_row(csv_path, epoch, metrics_dict):
     """Append one epoch row; write header if new file."""
 
+    csv_path = eval_artifact_path(csv_path)
     new_file = not os.path.isfile(csv_path)
     with open(csv_path, "a", newline="") as f:
         w = csv.writer(f)
@@ -120,6 +135,9 @@ def append_train_eval_row(csv_path, epoch, metrics_dict):
 def refresh_train_eval_plots(csv_path, plot_basename):
     """Re-read training curve CSV and overwrite three epoch vs metric charts."""
 
+    csv_path = eval_artifact_path(csv_path)
+    if not plot_basename.startswith(EVAL_ARTIFACT_PREFIX):
+        plot_basename = f"{EVAL_ARTIFACT_PREFIX}{plot_basename}"
     if not os.path.isfile(csv_path):
         return
     df = pd.read_csv(csv_path)
@@ -143,17 +161,23 @@ def refresh_train_eval_plots(csv_path, plot_basename):
 def refresh_combined_dense_cold_train_eval_plots(curve_dir, model_prefix):
     """Overlay dense vs cold_start val@10 training curves (one PNG per metric).
 
-    Expects CSVs: ``{model_prefix}_dense_val_at10_train.csv`` and
-    ``{model_prefix}_cold_start_val_at10_train.csv`` under ``curve_dir``.
-    Writes: ``{model_prefix}_val_at10_combined_<metric>_at10_vs_epoch.png``.
+    Expects CSVs: ``v2_{model_prefix}_dense_val_at10_train.csv`` and
+    ``v2_{model_prefix}_cold_start_val_at10_train.csv`` under ``curve_dir``.
+    Writes: ``v2_{model_prefix}_val_at10_combined_<metric>_at10_vs_epoch.png``.
     """
     curve_dir = os.path.expanduser(str(curve_dir))
     if not curve_dir or not os.path.isdir(curve_dir):
         return
 
     paths_labels = [
-        (os.path.join(curve_dir, f"{model_prefix}_dense_val_at10_train.csv"), "dense"),
-        (os.path.join(curve_dir, f"{model_prefix}_cold_start_val_at10_train.csv"), "cold_start"),
+        (
+            eval_artifact_path(os.path.join(curve_dir, f"{model_prefix}_dense_val_at10_train.csv")),
+            "dense",
+        ),
+        (
+            eval_artifact_path(os.path.join(curve_dir, f"{model_prefix}_cold_start_val_at10_train.csv")),
+            "cold_start",
+        ),
     ]
     metric_cols = [
         ("precision_at_10", "precision", "Precision"),
@@ -179,7 +203,7 @@ def refresh_combined_dense_cold_train_eval_plots(curve_dir, model_prefix):
         title = f"{y_title}@10 vs epoch ({model_prefix}, val)"
         out_path = os.path.join(
             curve_dir,
-            f"{model_prefix}_val_at10_combined_{short}_at10_vs_epoch.png",
+            f"{EVAL_ARTIFACT_PREFIX}{model_prefix}_val_at10_combined_{short}_at10_vs_epoch.png",
         )
         createLineChartMulti(series, title, "Epoch", y_title, out_path)
 
@@ -195,7 +219,7 @@ def evalPipeline(predictions_df, export_prefix="", k=K_EVAL):
     if m is None:
         return
 
-    snap = os.path.join(out_dir, f"{prefix}eval_at10_posthoc.csv")
+    snap = os.path.join(out_dir, f"{EVAL_ARTIFACT_PREFIX}{prefix}eval_at10_posthoc.csv")
     with open(snap, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["k", "precision_macro", "recall_macro", "ndcg_macro", "n_users"])

@@ -11,6 +11,7 @@ from transformers import GPT2LMHeadModel, GPT2Tokenizer
 from custom_sasrec_funcs import buildIDMappings
 
 from config import GlobalConfig
+from eval_metrics import eval_artifact_path
 from gpt4rec.data import (
     build_examples_for_holdout,
     build_examples_for_training,
@@ -124,8 +125,10 @@ def runGPT4RecPipeline(data_type="dense"):
     curve_dir.mkdir(parents=True, exist_ok=True)
     curve_csv = str(curve_dir / f"gpt4rec_{data_type}_val_at10_train.csv")
     plot_base = f"gpt4rec_{data_type}_val_at10"
-    if Path(curve_csv).exists():
-        Path(curve_csv).unlink()
+
+    artifact_csv = eval_artifact_path(curve_csv)
+    if Path(artifact_csv).exists():
+        Path(artifact_csv).unlink()
 
     val_cap = max(1, int(getattr(args, "val_eval_max_users", 512)))
     if len(val_prompts) > val_cap:
@@ -137,12 +140,34 @@ def runGPT4RecPipeline(data_type="dense"):
         sampled_targets = val_targets
 
     eval_every = max(1, int(getattr(args, "train_eval_every", 5)))
+    num_epochs = max(1, int(getattr(args, "num_epochs", 1)))
+    print(
+        f"[GPT4Rec pipeline:{data_type}] LM training: num_epochs={num_epochs}, "
+        f"train_eval_every={eval_every} (in-training val runs on epoch 1 and when epoch % {eval_every} == 0). "
+        f"Sampled val users for in-training eval: {len(sampled_prompts)} / {len(val_prompts)}.",
+        flush=True,
+    )
 
     def _epoch_eval(epoch: int):
         if not sampled_prompts:
+            print(
+                f"[GPT4Rec in-training eval] epoch {epoch}: skipped (no sampled val prompts).",
+                flush=True,
+            )
             return
         if epoch % eval_every != 0 and epoch != 1:
+            print(
+                f"[GPT4Rec in-training eval] epoch {epoch}/{num_epochs}: skipped "
+                f"(only epoch 1 and epochs where epoch % train_eval_every ({eval_every}) == 0 run eval; "
+                f"{epoch} % {eval_every} = {epoch % eval_every}).",
+                flush=True,
+            )
             return
+        print(
+            f"[GPT4Rec in-training eval] epoch {epoch}/{num_epochs}: running evaluate_with_bm25 on "
+            f"{len(sampled_prompts)} users (BM25 defaults k1={args.bm25_k1_default}, b={args.bm25_b_default})...",
+            flush=True,
+        )
         default_pred = evaluate_with_bm25(
             model,
             tokenizer,
@@ -154,10 +179,20 @@ def runGPT4RecPipeline(data_type="dense"):
             device,
             args.bm25_k1_default,
             args.bm25_b_default,
+            progress_label=f"in-train-val-epoch-{epoch}",
         )
         write_train_curves(curve_csv, plot_base, epoch, default_pred)
+        print(
+            f"[GPT4Rec in-training eval] epoch {epoch}/{num_epochs}: done; train curves updated.",
+            flush=True,
+        )
 
+    print(f"[GPT4Rec pipeline:{data_type}] starting LM fine-tuning...", flush=True)
     train_generation_model(model, tokenizer, train_texts, args, device, on_epoch_end=_epoch_eval)
+    print(
+        f"[GPT4Rec pipeline:{data_type}] LM fine-tuning finished; starting BM25 hyperparameter search...",
+        flush=True,
+    )
 
     best_k1, best_b = tune_bm25_params(
         model, tokenizer, val_prompts, val_targets, search_index, ranker, args, device
@@ -165,9 +200,25 @@ def runGPT4RecPipeline(data_type="dense"):
     logging.info(f"BM25 tuned params for {data_type}: k1={best_k1}, b={best_b}")
 
     # Final val/test predictions
-    val_final = evaluate_with_bm25(
-        model, tokenizer, val_prompts, val_targets, search_index, ranker, args, device, best_k1, best_b
+    print(
+        f"[GPT4Rec pipeline:{data_type}] final full validation eval "
+        f"({len(val_prompts)} users, tuned k1={best_k1}, b={best_b})...",
+        flush=True,
     )
+    val_final = evaluate_with_bm25(
+        model,
+        tokenizer,
+        val_prompts,
+        val_targets,
+        search_index,
+        ranker,
+        args,
+        device,
+        best_k1,
+        best_b,
+        progress_label=f"final-val-{data_type}",
+    )
+    print(f"[GPT4Rec pipeline:{data_type}] final validation eval complete.", flush=True)
     val_out = to_eval_output(val_final, int_to_item)
 
     # test prompts include val target appended when available
@@ -184,15 +235,33 @@ def runGPT4RecPipeline(data_type="dense"):
     )
     test_prompts = [build_history_prompt(e.history_titles) for e in test_examples]
     test_targets = [e.target_item_int_id for e in test_examples]
-    test_final = evaluate_with_bm25(
-        model, tokenizer, test_prompts, test_targets, search_index, ranker, args, device, best_k1, best_b
+    print(
+        f"[GPT4Rec pipeline:{data_type}] final test eval ({len(test_prompts)} users)...",
+        flush=True,
     )
+    test_final = evaluate_with_bm25(
+        model,
+        tokenizer,
+        test_prompts,
+        test_targets,
+        search_index,
+        ranker,
+        args,
+        device,
+        best_k1,
+        best_b,
+        progress_label=f"final-test-{data_type}",
+    )
+    print(f"[GPT4Rec pipeline:{data_type}] final test eval complete.", flush=True)
     test_out = to_eval_output(test_final, int_to_item)
 
     outputs_dir = config.data_dir / "outputs" / "gpt4rec"
     outputs_dir.mkdir(parents=True, exist_ok=True)
-    val_out.to_csv(outputs_dir / f"{data_type}_val_predictions.csv", index=False)
-    test_out.to_csv(outputs_dir / f"{data_type}_test_predictions.csv", index=False)
+    val_path = outputs_dir / f"{data_type}_val_predictions.csv"
+    test_path = outputs_dir / f"{data_type}_test_predictions.csv"
+    print(f"[GPT4Rec pipeline:{data_type}] writing {val_path} and {test_path} ...", flush=True)
+    val_out.to_csv(val_path, index=False)
+    test_out.to_csv(test_path, index=False)
     logging.info(f"GPT4Rec pipeline complete for {data_type}. predictions saved to {outputs_dir}")
 
     return val_out, test_out
