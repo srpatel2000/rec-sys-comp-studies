@@ -137,6 +137,9 @@ def evaluate_with_bm25(
     device: torch.device,
     k1: float,
     b: float,
+    RA: Optional[RetrievalAugmentation] = None,
+    node_to_item_id: Optional[Dict[int, int]] = None,
+    raptor_top_k: Optional[int] = None,
     progress_label: Optional[str] = None,
     runtime_tracker: Optional[GPT4RecRuntimeTracker] = None,
     timing_detail: str = "",
@@ -283,6 +286,9 @@ def tune_bm25_params(
                 device,
                 float(k1),
                 float(b),
+                RA=None, # raptor tree
+                node_to_item_id, # mapping of node to item id
+                raptor_top_k, # top k items to return from raptor
                 progress_label=f"BM25-tune-{trial}/{n_trials}-k1={k1}-b={b}",
                 runtime_tracker=runtime_tracker,
                 timing_detail=f"bm25_tune_trial_{trial}_of_{n_trials}",

@@ -169,7 +169,7 @@ def runGPT4RecPipeline(data_type="dense"):
 
     # RAPTOR INSERTION 
     t0 = time.perf_counter()
-    raptor_path = config.data_dir / f"raptor_catalog_{data_type}.pkl"
+    raptor_path = config.trained_models_dir / "raptor" / f"raptor_catalog_{data_type}.pkl"
     if raptor_path.exists():
         RA = load_raptor_tree(raptor_path)
     else:
