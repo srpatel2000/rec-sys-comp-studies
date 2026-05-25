@@ -76,3 +76,8 @@ def build_raptor_tree(RA: RetrievalAugmentation, document: str):
 
 def save_raptor_tree(RA, tree, path):
     RA.save(path)
+
+
+def load_raptor_tree(path):
+    RA = RetrievalAugmentation(tree=path)
+    return RA

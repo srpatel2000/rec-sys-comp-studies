@@ -24,7 +24,8 @@ from gpt4rec.prompting import build_history_prompt, build_train_text
 from gpt4rec.runtime_tracking import GPT4RecRuntimeTracker
 from gpt4rec.search import BM25SearchIndex
 from gpt4rec.train_eval import evaluate_with_bm25, train_generation_model, tune_bm25_params, write_train_curves
-
+from gpt4rec.build_raptor import initialize_raptor, build_raptor_tree, save_raptor_tree, load_raptor_tree
+from gpt4rec.build_raptor import GPT4RecSummarizationModel, SBertEmbeddingModel
 
 def int_to_asin_map(item2id):
     return {v: k for k, v in item2id.items()}
@@ -164,6 +165,22 @@ def runGPT4RecPipeline(data_type="dense"):
         "bm25_index_build_and_ranker_init",
         time.perf_counter() - t0,
         detail=f"n_indexed_items={len(search_index.doc_tokens)}",
+    )
+
+    # RAPTOR INSERTION 
+    t0 = time.perf_counter()
+    raptor_path = config.data_dir / f"raptor_catalog_{data_type}.pkl"
+    if raptor_path.exists():
+        RA = load_raptor_tree(raptor_path)
+    else:
+        RA = initialize_raptor(GPT4RecSummarizationModel(config), SBertEmbeddingModel())
+        document = "\n".join(item_text_by_item_id.values()) # all item texts concatenated into a single string
+        build_raptor_tree(RA, document)
+        save_raptor_tree(RA, raptor_path)
+    tracker.log(
+        "raptor_initialize_and_build_tree",
+        time.perf_counter() - t0,
+        detail=f"n_indexed_items={len(RA.tree)}",
     )
 
     t0 = time.perf_counter()
