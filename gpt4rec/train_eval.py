@@ -56,15 +56,15 @@ def train_generation_model(
     optimizer = torch.optim.Adam(model.parameters(), lr=float(args.lr))
     max_len = int(getattr(args, "maxlen", 128))
     batch_size = max(1, int(getattr(args, "batch_size", 8)))
-    num_epochs = max(1, int(getattr(args, "num_epochs", 1)))
+    num_epochs = max(1, int(getattr(args, "num_epochs", 1))) 
 
     t_enc = time.perf_counter()
     input_ids_all, attn_all = build_lm_encodings(tokenizer, train_texts, max_len)
     labels = input_ids_all.clone()
-    labels[attn_all == 0] = -100
+    labels[attn_all == 0] = -100 # ensures that only real tokens are trained on
 
     ds = TensorDataset(input_ids_all, attn_all, labels)
-    loader = DataLoader(ds, batch_size=batch_size, shuffle=True, drop_last=False)
+    loader = DataLoader(ds, batch_size=batch_size, shuffle=True, drop_last=False) # splits data into batches
     if runtime_tracker is not None:
         runtime_tracker.log(
             "lm_tokenize_encode_and_build_dataloader",

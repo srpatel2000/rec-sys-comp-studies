@@ -55,10 +55,10 @@ class GPT4RecGenerationModel(GPT4RecommendationBaseModel):
     """Generation-stage model used for query generation."""
 
     def forward_train(self, input_ids, attention_mask=None, labels=None):
-        embeds = self.embed(input_ids)
+        embeds = self.embed(input_ids) # size: (batch_size, max_len, n_embd (768))
         return self.gpt2model(
             inputs_embeds=embeds, attention_mask=attention_mask, labels=labels
-        )
+        ) # completes a model forward pass
 
     @torch.no_grad()
     def generate_queries(

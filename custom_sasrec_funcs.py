@@ -21,6 +21,7 @@ from eval_metrics import (
 )
 from sas_rec.sampler import WarpSampler
 from sas_rec.model import Model
+from sas_rec.runtime_tracking import SASRecRuntimeTracker
 
 sasrec_config = SASRecModelConfig()
 
@@ -90,6 +91,7 @@ def trainSASRec(
     maxlen=None,
     data_type="",
     curve_dir=None,
+    runtime_tracker=None,
 ):
     """Train the SASRec model using the training batches from the WarpSampler.
     Creds to: https://github.com/recommenders-team/recommenders/blob/main/examples/00_quick_start/sasrec_amazon.ipynb"""
@@ -115,6 +117,7 @@ def trainSASRec(
         logging.info("Skipping in-training val @10 curve: no val rows for this dataset.")
 
     for epoch in range(1, args.num_epochs + 1):
+        t_epoch_train = time.perf_counter()
         for _ in range(num_batches):
             u, seq, pos, neg = sampler.next_batch()
             sess.run(model.train_op, {
@@ -124,6 +127,13 @@ def trainSASRec(
                 model.neg: neg,
                 model.is_training: True,
             })
+        if runtime_tracker is not None:
+            runtime_tracker.log(
+                "sasrec_epoch_optimizer_forward_backward",
+                time.perf_counter() - t_epoch_train,
+                epoch=epoch,
+                detail=f"n_batches={num_batches}",
+            )
         if epoch % eval_every == 0 or epoch == 1:
             elapsed = (time.perf_counter() - train_start) / 60
             logging.info(f"epoch {epoch}/{args.num_epochs} ({elapsed:.1f} min)")
@@ -132,9 +142,17 @@ def trainSASRec(
             sample = val_eval_df
             if len(sample) > val_cap:
                 sample = sample.sample(val_cap, random_state=42)
+            t_eval = time.perf_counter()
             pred_df = predictForUsers(
                 model, sess, user_sequences, sample, itemnum, maxlen, verbose=False,
             )
+            if runtime_tracker is not None:
+                runtime_tracker.log(
+                    "in_train_val_predict_total",
+                    time.perf_counter() - t_eval,
+                    epoch=epoch,
+                    detail=f"n_users={len(sample)} val_cap={val_cap}",
+                )
             m = macro_metrics_at_k_items(pred_df, k=K_EVAL)
             if m is not None:
                 append_train_eval_row(curve_csv, epoch, m)
@@ -264,15 +282,21 @@ def runSASRecPipeline(data_type="dense"):
 
     config = GlobalConfig()
     args = config.model_namespace("sasrec")
+    tracker = SASRecRuntimeTracker(data_type)
 
     logging.info(f"Running SASRec pipeline for {data_type} dataset...")
 
-    # load train/val/test CSVs
+    t0 = time.perf_counter()
     train_df = pd.read_csv(config.data_dir / "train" / f"{data_type}_train.csv")
     val_df = pd.read_csv(config.data_dir / "val" / f"{data_type}_val.csv")
     test_df = pd.read_csv(config.data_dir / "test" / f"{data_type}_test.csv")
+    tracker.log(
+        "io_load_train_val_test_csv",
+        time.perf_counter() - t0,
+        detail=f"rows train={len(train_df)} val={len(val_df)} test={len(test_df)}",
+    )
 
-    # step 1: build ID mappings from all data
+    t0 = time.perf_counter()
     all_data = pd.concat([train_df, val_df, test_df], ignore_index=True)
     user_int_id, item_int_id = buildIDMappings(all_data)
     print(f"First 10 Users Dictionary: {dict(list(user_int_id.items())[:10])}")
@@ -282,28 +306,53 @@ def runSASRecPipeline(data_type="dense"):
 
     print(f"Number of Users: {usernum}")
     print(f"Number of Items: {itemnum}")
+    tracker.log(
+        "data_concat_and_id_mappings",
+        time.perf_counter() - t0,
+        detail=f"n_users={usernum} n_items={itemnum}",
+    )
 
-    # step 2: build per-user train sequences
+    t0 = time.perf_counter()
     user_sequences = perUserSequence(train_df.copy(), user_int_id, item_int_id)
-
-    # # encode val/test dataframes with int IDs
     val_df["user_int_id"] = val_df["user_id"].map(user_int_id)
     val_df["item_int_id"] = val_df["parent_asin"].map(item_int_id)
     test_df["user_int_id"] = test_df["user_id"].map(user_int_id)
     test_df["item_int_id"] = test_df["parent_asin"].map(item_int_id)
+    tracker.log(
+        "data_per_user_sequences_and_val_test_encode",
+        time.perf_counter() - t0,
+        detail=f"n_val={len(val_df)} n_test={len(test_df)}",
+    )
 
-    # step 3: build model and initialize session BEFORE starting sampler
+    t0 = time.perf_counter()
     tf.reset_default_graph()
     model = buildSASRecModel(usernum, itemnum, args)
-
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     logging.info("Session created and variables initialized.")
+    tracker.log(
+        "sasrec_model_build_and_session_init",
+        time.perf_counter() - t0,
+        detail=f"maxlen={args.maxlen} hidden_units={args.hidden_units}",
+    )
 
-    # step 4: create sampler AFTER session is ready (avoids multiprocessing deadlock on MacOS)
+    t0 = time.perf_counter()
     sampler = trainingBatches(user_sequences, usernum, itemnum, args.batch_size, args.maxlen)
+    tracker.log(
+        "warpsampler_init",
+        time.perf_counter() - t0,
+        detail=f"batch_size={args.batch_size} maxlen={args.maxlen}",
+    )
 
+    t_curve = time.perf_counter()
     curve_dir = str(config.trained_models_dir / "eval_metrics")
+    val_cap = max(1, int(getattr(args, "val_eval_max_users", 512)))
+    tracker.log(
+        "in_train_eval_metrics_init",
+        time.perf_counter() - t_curve,
+        detail=f"val_cap={val_cap} n_val_rows={len(val_df)}",
+    )
+
     trainSASRec(
         sess,
         model,
@@ -315,22 +364,41 @@ def runSASRecPipeline(data_type="dense"):
         maxlen=args.maxlen,
         data_type=data_type,
         curve_dir=curve_dir,
+        runtime_tracker=tracker,
     )
 
-    # step 6: val predictions
+    t0 = time.perf_counter()
     val_preds = predictVal(model, sess, user_sequences, val_df, itemnum, args.maxlen)
+    tracker.log(
+        "final_val_predict_total",
+        time.perf_counter() - t0,
+        detail=f"n_users={len(val_df)}",
+    )
     val_preds = convertIDBackToRaw(val_preds, user_int_id, item_int_id)
 
-    # step 7: test predictions
+    t0 = time.perf_counter()
     test_preds = predictTest(model, sess, user_sequences, val_df, test_df, itemnum, args.maxlen)
+    tracker.log(
+        "final_test_predict_total",
+        time.perf_counter() - t0,
+        detail=f"n_users={len(test_df)}",
+    )
     test_preds = convertIDBackToRaw(test_preds, user_int_id, item_int_id)
 
     outputs_dir = config.data_dir / "outputs" / "sasrec"
     outputs_dir.mkdir(parents=True, exist_ok=True)
+    t0 = time.perf_counter()
     val_preds.to_csv(outputs_dir / f"{data_type}_val_predictions.csv", index=False)
     test_preds.to_csv(outputs_dir / f"{data_type}_test_predictions.csv", index=False)
+    tracker.log(
+        "io_write_val_test_prediction_csvs",
+        time.perf_counter() - t0,
+        detail=str(outputs_dir),
+    )
 
     sess.close()
+    timing_csv = tracker.save(config.trained_models_dir)
     logging.info(f"SASRec pipeline complete for {data_type}. predictions saved to {outputs_dir}")
+    logging.info(f"SASRec runtime CSV: {timing_csv}")
 
     return val_preds, test_preds 

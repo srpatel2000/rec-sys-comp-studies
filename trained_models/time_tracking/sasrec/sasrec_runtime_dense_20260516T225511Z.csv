@@ -1,0 +1,253 @@
+run_id,data_type,component,duration_sec,epoch,detail
+20260516T225511Z,dense,io_load_train_val_test_csv,2.644212,,rows train=719198 val=49999 test=49999
+20260516T225511Z,dense,data_concat_and_id_mappings,0.136046,,n_users=49999 n_items=196152
+20260516T225511Z,dense,data_per_user_sequences_and_val_test_encode,3.527146,,n_val=49999 n_test=49999
+20260516T225511Z,dense,sasrec_model_build_and_session_init,0.664101,,maxlen=50 hidden_units=50
+20260516T225511Z,dense,warpsampler_init,3.73752,,batch_size=128 maxlen=50
+20260516T225511Z,dense,in_train_eval_metrics_init,8.1e-05,,val_cap=512 n_val_rows=49999
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.74773,1,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,10.802773,1,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.233423,2,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,19.595258,3,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,21.691501,4,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,23.363822,5,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,9.555529,5,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.957685,6,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.873128,7,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.622752,8,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,19.362402,9,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,19.631401,10,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,9.254989,10,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.689789,11,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.477131,12,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,19.470462,13,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,21.272811,14,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,21.702482,15,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,8.424435,15,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.096513,16,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.293631,17,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.336031,18,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.523913,19,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.687239,20,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,8.41573,20,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.911599,21,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.19519,22,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.173972,23,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.873457,24,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.404175,25,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,8.331936,25,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.668507,26,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.204724,27,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.480116,28,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.601055,29,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.443596,30,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,8.418263,30,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.491821,31,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.280208,32,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.110771,33,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.498727,34,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.208051,35,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,8.348655,35,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.360267,36,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.605409,37,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.89927,38,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.2878,39,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.43387,40,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,8.325931,40,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.320768,41,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.440389,42,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.803594,43,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.125399,44,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.333832,45,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,8.445386,45,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.451259,46,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.592267,47,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.642437,48,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.893479,49,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.774849,50,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,8.410246,50,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.28428,51,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.57446,52,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.853987,53,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.94384,54,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.935053,55,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.236953,55,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.700308,56,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.225156,57,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.850213,58,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.811198,59,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.915732,60,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.274594,60,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.613594,61,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.895671,62,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.758805,63,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.73802,64,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.15284,65,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.315173,65,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.166184,66,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.839309,67,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.124844,68,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.283076,69,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.838261,70,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.344103,70,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.16458,71,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.566322,72,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.834509,73,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.905518,74,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.15018,75,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.27631,75,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.526177,76,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.939704,77,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.526869,78,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.86791,79,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.328243,80,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.307238,80,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.607135,81,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.980136,82,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.966316,83,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.233606,84,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.091757,85,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.243677,85,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.096354,86,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.595277,87,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.015591,88,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.926414,89,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.978398,90,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.301724,90,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.078335,91,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.300584,92,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.370031,93,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.185165,94,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.329892,95,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.183906,95,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.221435,96,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.378162,97,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.842225,98,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.269427,99,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.358339,100,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.285654,100,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.118009,101,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.133841,102,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.298381,103,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.345053,104,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.302902,105,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.109188,105,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,15.789918,106,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.327563,107,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.768238,108,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.370886,109,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.170572,110,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.273905,110,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.416682,111,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.747357,112,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.475255,113,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.519815,114,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.560207,115,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.17581,115,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.389024,116,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.51204,117,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.484939,118,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.688209,119,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.705789,120,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.225001,120,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.13276,121,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.364853,122,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.44887,123,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.399245,124,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.395909,125,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.278604,125,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.061297,126,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.273287,127,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.307352,128,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.363454,129,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.357392,130,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.234803,130,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.154411,131,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.32028,132,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.983467,133,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.458515,134,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.273242,135,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.287718,135,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.83218,136,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.596784,137,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.671623,138,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.052155,139,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.734319,140,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.287356,140,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.586147,141,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.218654,142,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.059715,143,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,19.090676,144,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,19.504164,145,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.343892,145,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.375403,146,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.387925,147,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.476094,148,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.015836,149,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.591344,150,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.227727,150,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.44957,151,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.900145,152,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.066987,153,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.077065,154,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.114044,155,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.314488,155,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.324572,156,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.527021,157,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.657675,158,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.626904,159,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.475599,160,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.319075,160,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.252415,161,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.03833,162,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.676132,163,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.089502,164,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.83388,165,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.263854,165,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.466972,166,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.728161,167,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.997316,168,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.622053,169,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,18.003826,170,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.349988,170,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.050459,171,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.239708,172,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.520428,173,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.557674,174,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.279167,175,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.244188,175,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,15.92223,176,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.18623,177,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.540775,178,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.853399,179,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.155477,180,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.319951,180,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.205186,181,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.068856,182,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.310023,183,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.361648,184,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.271226,185,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.318865,185,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.45725,186,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.842968,187,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.684966,188,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.859206,189,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.059374,190,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.323499,190,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.692173,191,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.162869,192,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.332386,193,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.282286,194,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,17.347406,195,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.303609,195,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,15.93969,196,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.184747,197,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.543566,198,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.884483,199,n_batches=390
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,16.782338,200,n_batches=390
+20260516T225511Z,dense,in_train_val_predict_total,2.289127,200,n_users=512 val_cap=512
+20260516T225511Z,dense,sasrec_epoch_optimizer_forward_backward,15.973896,201,n_batches=390
+20260516T225511Z,dense,final_val_predict_total,190.969208,,n_users=49999
+20260516T225511Z,dense,final_test_predict_total,199.034589,,n_users=49999
+20260516T225511Z,dense,io_write_val_test_prediction_csvs,0.254746,,/Users/siddhipatel/Desktop/desktop/ENGR 299 Capstone/rec-sys-comp-studies/data/outputs/sasrec
+20260516T225511Z,dense,pipeline_end_to_end_wall,4018.32907,,perf_counter from tracker init to save()

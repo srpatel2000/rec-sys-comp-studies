@@ -43,11 +43,11 @@ class GPT4RecModelConfig:
 
 	# Backbone / architecture
 	hf_model_name: str = "distilgpt2"
-	maxlen: int = 40
+	maxlen: int = 50
 	num_preds: int = 10
-	n_embd: int = 768
+	# n_embd: int = 768
 	initializer_range: float = 0.02
-	train_eval_every: int = 5
+	train_eval_every: int = 2
 	val_eval_max_users: int = 512
 
 	# Query generation + retrieval

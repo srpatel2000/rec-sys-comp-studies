@@ -1,5 +1,6 @@
 """Data utilities for GPT4Rec over existing split CSVs."""
 
+import logging
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
@@ -7,15 +8,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-
-def build_id_mappings(all_data):
-    """Build ID mappings for users and items."""
-    
-    users = all_data["user_id"].unique()
-    items = all_data["parent_asin"].unique()
-    user2id = {u: i for i, u in enumerate(users, start=1)}
-    item2id = {a: i for i, a in enumerate(items, start=1)}
-    return user2id, item2id
+EXAMPLE_USER = "AHULIJDWTYYPBXFP5FFM75GFEZKA"
 
 
 def build_user_histories(
@@ -39,6 +32,32 @@ def build_item_texts(all_data: pd.DataFrame) -> Dict[str, str]:
         if pd.isna(title):
             title = asin
         texts[str(asin)] = str(title)
+
+    if "user_id" in all_data.columns:
+        mask = all_data["user_id"].astype(str) == EXAMPLE_USER
+        if mask.any():
+            u_asins = (
+                all_data.loc[mask, "parent_asin"]
+                .dropna()
+                .astype(str)
+                .unique()
+            )
+            preview = list(u_asins)[:5]
+            logging.info(
+                "[build_item_texts] example user %s: %d distinct items (showing up to 5)",
+                EXAMPLE_USER,
+                len(u_asins),
+            )
+            for a in preview:
+                t = texts.get(a, "")
+                shown = (t[:120] + "…") if len(t) > 120 else t
+                logging.info("[build_item_texts]   %s -> %s", a, shown)
+        else:
+            logging.info(
+                "[build_item_texts] example user %s not in all_data; skip preview",
+                EXAMPLE_USER,
+            )
+
     return texts
 
 
@@ -57,6 +76,7 @@ def build_examples_for_training(
     item2id: Dict[str, int],
     item_text_by_asin: Dict[str, str],
 ) -> List[GPTExample]:
+
     examples: List[GPTExample] = []
     df = train_df.copy()
     df["user_int_id"] = df["user_id"].map(user2id)
@@ -80,6 +100,16 @@ def build_examples_for_training(
                 target_title=target_title,
             )
         )
+        if EXAMPLE_USER in user2id and int(uid) == user2id[EXAMPLE_USER]:
+            ex = examples[-1]
+            print(
+                f"[build_examples_for_training] example user {EXAMPLE_USER} (uid={uid}):\n"
+                f"  history_item_int_ids={ex.history_item_int_ids}\n"
+                f"  target_item_int_id={ex.target_item_int_id}\n"
+                f"  history_titles={ex.history_titles}\n"
+                f"  target_title={ex.target_title!r}",
+                flush=True,
+            )
     return examples
 
 
@@ -91,6 +121,7 @@ def build_examples_for_holdout(
     item_text_by_asin: Dict[str, str],
     int_to_item: Dict[int, str],
 ) -> List[GPTExample]:
+
     examples: List[GPTExample] = []
     for _, row in target_df.iterrows():
         uid = int(user2id[row["user_id"]])
@@ -113,6 +144,17 @@ def build_examples_for_holdout(
                 target_title=item_text_by_asin.get(target_asin, target_asin),
             )
         )
+        if EXAMPLE_USER in user2id and uid == user2id[EXAMPLE_USER]:
+            ex = examples[-1]
+            print(
+                f"[build_examples_for_holdout] example user {EXAMPLE_USER} "
+                f"target_asin={target_asin}:\n"
+                f"  history_item_int_ids={ex.history_item_int_ids}\n"
+                f"  target_item_int_id={ex.target_item_int_id}\n"
+                f"  history_titles={ex.history_titles}\n"
+                f"  target_title={ex.target_title!r}",
+                flush=True,
+            )
     return examples
 
 

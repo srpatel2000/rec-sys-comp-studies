@@ -131,14 +131,14 @@ def runGPT4RecPipeline(data_type="dense"):
     t0 = time.perf_counter()
     lm = GPT2LMHeadModel.from_pretrained(args.hf_model_name)
 
-    class _TmpCfg:
+    class TmpCfg:
         pass
 
-    tmp = _TmpCfg()
+    tmp = TmpCfg()
     tmp.num_users = len(user2id) + 1
     tmp.num_items = len(item2id) + 1
     tmp.vocab_size = tokenizer.vocab_size
-    tmp.n_embd = lm.config.n_embd
+    tmp.n_embd = lm.config.n_embd # in order to deal with shape mismatch between lm and gpt4rec model
     tmp.initializer_range = args.initializer_range
 
     model = GPT4RecGenerationModel(tmp, lm)
@@ -212,9 +212,9 @@ def runGPT4RecPipeline(data_type="dense"):
 
     def _epoch_eval(epoch: int):
         if not sampled_prompts:
-            return
+            return # no sampled prompts for in-training eval
         if epoch % eval_every != 0 and epoch != 1:
-            return
+            return # not time to evaluate
         default_pred = evaluate_with_bm25(
             model,
             tokenizer,

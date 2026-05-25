@@ -67,7 +67,12 @@ def _rows_from_int_predictions(pred_df, k=K_EVAL):
 
 
 def _macro_at_k(rows, k):
-    """Return (precision, recall, ndcg) macro means or None if no rows."""
+    """Return (precision, recall, ndcg) macro means or None if no rows.
+
+    Precision/recall use **distinct** relevant items found in the top-`k` list
+    (set intersection), so duplicate item ids in the ranking cannot inflate
+    recall above 1. DCG credits each relevant item at its **first** rank only.
+    """
 
     if not rows:
         return None
@@ -77,14 +82,16 @@ def _macro_at_k(rows, k):
     ndcg = 0.0
     for ranked, gset in rows:
         clipped = ranked[:k]
-        hits = sum(1 for x in clipped if x in gset)
-        prec += hits / k
-        rec += hits / len(gset)
+        rel_found = len(set(clipped) & gset)
+        prec += rel_found / k
+        rec += rel_found / len(gset)
 
         dcg = 0.0
+        credited = set()
         for j, item in enumerate(clipped):
-            rel = 1.0 if item in gset else 0.0
-            dcg += rel / math.log2(j + 2)
+            if item in gset and item not in credited:
+                credited.add(item)
+                dcg += 1.0 / math.log2(j + 2)
         m = min(k, len(gset))
         idcg = sum(1.0 / math.log2(j + 2) for j in range(m))
         ndcg += (dcg / idcg) if idcg > 0 else 0.0
