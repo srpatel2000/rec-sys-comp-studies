@@ -1,1 +1,5 @@
-\data
+data/
+
+# Artifacts over GitHub's 100MB file-size limit (kept locally, not tracked)
+trained_models/raptor/*.pkl
+trained_models/checkpoints/**/*.data-*

@@ -25,6 +25,25 @@ from sas_rec.runtime_tracking import SASRecRuntimeTracker
 
 sasrec_config = SASRecModelConfig()
 
+# Pipeline-only tuning (kept out of config.py / sas_rec/).
+PRED_ITEM_CHUNK_SIZE = 4096
+
+
+def scoreAllItems(model, sess, u_batch, seq_batch, itemnum, chunk_size=PRED_ITEM_CHUNK_SIZE):
+    """Score the full catalog in item chunks to avoid TF instability on ~200k items."""
+
+    parts = []
+    for start in range(1, itemnum + 1, chunk_size):
+        end = min(start + chunk_size - 1, itemnum)
+        items = np.arange(start, end + 1, dtype=np.int32)
+        part = model.predict(sess, u_batch, seq_batch, items)
+        if not np.isfinite(part).any():
+            raise RuntimeError(
+                f"SASRec produced non-finite logits for items {start}-{end}; model likely diverged.",
+            )
+        parts.append(part)
+    return np.concatenate(parts, axis=1)
+
 
 def buildIDMappings(data):
     """Build user and item ID mappings to convert raw IDs to integer indices
@@ -86,6 +105,8 @@ def trainSASRec(
     sampler,
     user_sequences,
     args,
+    saver,
+    checkpoint_dir,
     val_eval_df=None,
     itemnum=None,
     maxlen=None,
@@ -106,6 +127,9 @@ def trainSASRec(
     eval_every = max(1, int(getattr(args, "train_eval_every", 5))) 
     val_cap = max(1, int(getattr(args, "val_eval_max_users", 512)))
 
+    best_ndcg = -1.0
+    best_ckpt = None
+
     if curve_dir and data_type and val_eval_df is not None and len(val_eval_df) > 0 and itemnum and maxlen:
         os.makedirs(curve_dir, exist_ok=True)
         curve_csv = os.path.join(curve_dir, f"sasrec_{data_type}_val_at10_train.csv")
@@ -115,6 +139,8 @@ def trainSASRec(
             os.remove(artifact_csv)
     elif curve_dir and data_type:
         logging.info("Skipping in-training val @10 curve: no val rows for this dataset.")
+
+    os.makedirs(checkpoint_dir, exist_ok=True)
 
     for epoch in range(1, args.num_epochs + 1):
         t_epoch_train = time.perf_counter()
@@ -143,28 +169,39 @@ def trainSASRec(
             if len(sample) > val_cap:
                 sample = sample.sample(val_cap, random_state=42)
             t_eval = time.perf_counter()
-            pred_df = predictForUsers(
-                model, sess, user_sequences, sample, itemnum, maxlen, verbose=False,
-            )
-            if runtime_tracker is not None:
-                runtime_tracker.log(
-                    "in_train_val_predict_total",
-                    time.perf_counter() - t_eval,
-                    epoch=epoch,
-                    detail=f"n_users={len(sample)} val_cap={val_cap}",
+            try:
+                pred_df = predictForUsers(
+                    model, sess, user_sequences, sample, itemnum, maxlen, verbose=False,
                 )
-            m = macro_metrics_at_k_items(pred_df, k=K_EVAL)
-            if m is not None:
-                append_train_eval_row(curve_csv, epoch, m)
-                refresh_train_eval_plots(curve_csv, plot_base)
-                refresh_combined_dense_cold_train_eval_plots(curve_dir, "sasrec")
-                logging.info(
-                    f"val @10: P={m['precision']:.4f} R={m['recall']:.4f} NDCG={m['ndcg']:.4f} (n={m['n_users']})"
-                )
+            except RuntimeError as exc:
+                logging.warning("Skipping in-training val eval at epoch %d: %s", epoch, exc)
+            else:
+                if runtime_tracker is not None:
+                    runtime_tracker.log(
+                        "in_train_val_predict_total",
+                        time.perf_counter() - t_eval,
+                        epoch=epoch,
+                        detail=f"n_users={len(sample)} val_cap={val_cap}",
+                    )
+                m = macro_metrics_at_k_items(pred_df, k=K_EVAL)
+                if m is not None:
+                    append_train_eval_row(curve_csv, epoch, m)
+                    refresh_train_eval_plots(curve_csv, plot_base)
+                    refresh_combined_dense_cold_train_eval_plots(curve_dir, "sasrec")
+                    logging.info(
+                        f"val @10: P={m['precision']:.4f} R={m['recall']:.4f} "
+                        f"NDCG={m['ndcg']:.4f} (n={m['n_users']})"
+                    )
+
+                    if m["ndcg"] > best_ndcg:
+                        best_ndcg = m["ndcg"]
+                        best_ckpt = saver.save(sess, os.path.join(checkpoint_dir, "best"), global_step=epoch)
+                        logging.info("Saved best checkpoint (NDCG=%.4f): %s", best_ndcg, best_ckpt)
 
     sampler.close()
     train_minutes = (time.perf_counter() - train_start) / 60
     logging.info(f"training complete in {train_minutes:.2f} minutes")
+    return best_ckpt
 
 
 def predictForUsers(
@@ -198,22 +235,23 @@ def predictForUsers(
         seqs.append(seq)
         ground_truth_items.append(gt_item)
 
-    # score in batches — score all items, then extract ground-truth rank
-    all_items = np.arange(1, itemnum + 1)
-
     for batch_start in range(0, len(valid_users), pred_batch_size):
         batch_end = min(batch_start + pred_batch_size, len(valid_users))
         u_batch = valid_users[batch_start:batch_end]
         seq_batch = np.array(seqs[batch_start:batch_end])
         gt_batch = ground_truth_items[batch_start:batch_end]
 
-        scores = model.predict(sess, u_batch, seq_batch, all_items)
+        scores = scoreAllItems(model, sess, u_batch, seq_batch, itemnum)
 
         for i, uid in enumerate(u_batch):
             gt_item = gt_batch[i]
             gt_score = float(scores[i][gt_item - 1])  # items are 1-indexed
-            rank = int((scores[i] >= gt_score).sum())  # rank of ground-truth item
-            order = np.argsort(-scores[i])[: sasrec_config.num_preds]
+            if np.isfinite(gt_score):
+                rank = int(np.sum(scores[i] >= gt_score))
+            else:
+                rank = itemnum
+            safe_scores = np.where(np.isfinite(scores[i]), scores[i], -np.inf)
+            order = np.argsort(-safe_scores)[: sasrec_config.num_preds]
             top_k_items = (order + 1).tolist()
             top_k_scores = scores[i][order].astype(float).tolist()
 
@@ -327,6 +365,8 @@ def runSASRecPipeline(data_type="dense"):
     t0 = time.perf_counter()
     tf.reset_default_graph()
     model = buildSASRecModel(usernum, itemnum, args)
+    saver = tf.train.Saver()
+    checkpoint_dir = str(config.trained_models_dir / "checkpoints" / f"sasrec_{data_type}")
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     logging.info("Session created and variables initialized.")
@@ -353,12 +393,14 @@ def runSASRecPipeline(data_type="dense"):
         detail=f"val_cap={val_cap} n_val_rows={len(val_df)}",
     )
 
-    trainSASRec(
+    best_ckpt = trainSASRec(
         sess,
         model,
         sampler,
         user_sequences,
         args,
+        saver,
+        checkpoint_dir,
         val_eval_df=val_df,
         itemnum=itemnum,
         maxlen=args.maxlen,
@@ -366,6 +408,12 @@ def runSASRecPipeline(data_type="dense"):
         curve_dir=curve_dir,
         runtime_tracker=tracker,
     )
+
+    if best_ckpt:
+        logging.info("Restoring best checkpoint for final predict: %s", best_ckpt)
+        saver.restore(sess, best_ckpt)
+    else:
+        logging.warning("No best checkpoint saved; using final epoch weights for predict.")
 
     t0 = time.perf_counter()
     val_preds = predictVal(model, sess, user_sequences, val_df, itemnum, args.maxlen)

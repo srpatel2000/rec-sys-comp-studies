@@ -11,7 +11,7 @@ from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
 from custom_sasrec_funcs import buildIDMappings
 
-from config import GlobalConfig
+from config import GlobalConfig, GPT4RecModelConfig
 from eval_metrics import eval_artifact_path
 from gpt4rec.data import (
     build_examples_for_holdout,
@@ -24,8 +24,17 @@ from gpt4rec.prompting import build_history_prompt, build_train_text
 from gpt4rec.runtime_tracking import GPT4RecRuntimeTracker
 from gpt4rec.search import BM25SearchIndex
 from gpt4rec.train_eval import evaluate_with_bm25, train_generation_model, tune_bm25_params, write_train_curves
-from gpt4rec.build_raptor import initialize_raptor, build_raptor_tree, save_raptor_tree, load_raptor_tree
-from gpt4rec.build_raptor import GPT4RecSummarizationModel, SBertEmbeddingModel
+
+from gpt4rec.build_raptor import (
+    GPT4RecSummarizationModel,
+    SBertEmbeddingModel,
+    build_raptor_tree,
+    catalog_document_for_raptor,
+    initialize_raptor,
+    load_raptor_tree,
+    save_raptor_tree,
+    summary_to_items_from_tree,
+)
 
 def int_to_asin_map(item2id):
     return {v: k for k, v in item2id.items()}
@@ -167,20 +176,49 @@ def runGPT4RecPipeline(data_type="dense"):
         detail=f"n_indexed_items={len(search_index.doc_tokens)}",
     )
 
-    # RAPTOR INSERTION 
+    # Retrieval: per query, take top-N layer-1 summaries (default 15),
+    # union all items under them, then BM25 on that shortlist.
+    raptor_model_config = GPT4RecModelConfig()
     t0 = time.perf_counter()
     raptor_path = config.trained_models_dir / "raptor" / f"raptor_catalog_{data_type}.pkl"
+    raptor_prefilter_k = int(getattr(args, "raptor_prefilter_k", 50))
+    raptor_top_summaries = int(getattr(args, "raptor_top_summaries", 15))
+    raptor_embed = SBertEmbeddingModel()
     if raptor_path.exists():
-        RA = load_raptor_tree(raptor_path)
+        print(f"Loading RAPTOR tree from {raptor_path}", flush=True)
+        RA = load_raptor_tree(str(raptor_path), raptor_embed, raptor_prefilter_k)
     else:
-        RA = initialize_raptor(GPT4RecSummarizationModel(config), SBertEmbeddingModel())
-        document = "\n".join(item_text_by_item_id.values()) # all item texts concatenated into a single string
+        RA = initialize_raptor(
+            GPT4RecSummarizationModel(raptor_model_config),
+            raptor_embed,
+            leaf_top_k=raptor_prefilter_k,
+        )
+        document = catalog_document_for_raptor(item_text_by_item_id)
         build_raptor_tree(RA, document)
         save_raptor_tree(RA, raptor_path)
+    summary_to_items = summary_to_items_from_tree(RA)
+    n_summaries = len(summary_to_items)
+    summary_sizes = [len(v) for v in summary_to_items.values()]
+    avg_summary_size = (sum(summary_sizes) / n_summaries) if n_summaries else 0
+    if not summary_to_items:
+        logging.warning(
+            "RAPTOR layer-1 summaries are empty; BM25 will search the full catalog. "
+            "Delete %s and rerun to rebuild the tree with item tags.",
+            raptor_path,
+        )
     tracker.log(
         "raptor_initialize_and_build_tree",
         time.perf_counter() - t0,
-        detail=f"n_indexed_items={len(RA.tree)}",
+        detail=(
+            f"n_summary_nodes={n_summaries} "
+            f"avg_items_per_summary={avg_summary_size:.1f} "
+            f"top_summaries={raptor_top_summaries}"
+        ),
+    )
+    print(
+        f"[GPT4Rec pipeline:{data_type}] RAPTOR enabled — "
+        f"layer-1 prefilter (top_summaries={raptor_top_summaries}, tr_top_k={raptor_prefilter_k}).",
+        flush=True,
     )
 
     t0 = time.perf_counter()
@@ -227,7 +265,7 @@ def runGPT4RecPipeline(data_type="dense"):
         flush=True,
     )
 
-    def _epoch_eval(epoch: int):
+    def epoch_eval(epoch: int):
         if not sampled_prompts:
             return # no sampled prompts for in-training eval
         if epoch % eval_every != 0 and epoch != 1:
@@ -243,6 +281,9 @@ def runGPT4RecPipeline(data_type="dense"):
             device,
             args.bm25_k1_default,
             args.bm25_b_default,
+            RA=RA,
+            summary_to_items=summary_to_items,
+            top_summaries=raptor_top_summaries,
             progress_label=f"in-train-val-epoch-{epoch}",
             runtime_tracker=tracker,
             timing_detail=f"in_train_val_epoch_{epoch}",
@@ -258,25 +299,32 @@ def runGPT4RecPipeline(data_type="dense"):
 
     print(f"[GPT4Rec pipeline:{data_type}] starting LM fine-tuning...", flush=True)
     train_generation_model(
-        model, tokenizer, train_texts, args, device, on_epoch_end=_epoch_eval, runtime_tracker=tracker
+        model, tokenizer, train_texts, args, device, on_epoch_end=epoch_eval, runtime_tracker=tracker
     )
     print(
         f"[GPT4Rec pipeline:{data_type}] LM fine-tuning finished; starting BM25 hyperparameter search...",
         flush=True,
     )
 
-    best_k1, best_b = tune_bm25_params(
-        model,
-        tokenizer,
-        val_prompts,
-        val_targets,
-        search_index,
-        ranker,
-        args,
-        device,
-        runtime_tracker=tracker,
-    )
-    logging.info(f"BM25 tuned params for {data_type}: k1={best_k1}, b={best_b}")
+    # removing grid search due to time constraints
+    # best_k1, best_b = tune_bm25_params(
+    #     model,
+    #     tokenizer,
+    #     val_prompts,
+    #     val_targets,
+    #     search_index,
+    #     ranker,
+    #     args,
+    #     device,
+    #     runtime_tracker=tracker,
+    #     RA=RA,
+    #     summary_to_items=summary_to_items,
+    #     top_summaries=raptor_top_summaries,
+    # )
+    # logging.info(f"BM25 tuned params for {data_type}: k1={best_k1}, b={best_b}")
+
+    best_k1 = args.bm25_k1_default
+    best_b = args.bm25_b_default
 
     # Final val/test predictions
     print(
@@ -295,6 +343,9 @@ def runGPT4RecPipeline(data_type="dense"):
         device,
         best_k1,
         best_b,
+        RA=RA,
+        summary_to_items=summary_to_items,
+        top_summaries=raptor_top_summaries,
         progress_label=f"final-val-{data_type}",
         runtime_tracker=tracker,
         timing_detail="final_full_validation",
@@ -337,6 +388,9 @@ def runGPT4RecPipeline(data_type="dense"):
         device,
         best_k1,
         best_b,
+        RA=RA,
+        summary_to_items=summary_to_items,
+        top_summaries=raptor_top_summaries,
         progress_label=f"final-test-{data_type}",
         runtime_tracker=tracker,
         timing_detail="final_full_test",

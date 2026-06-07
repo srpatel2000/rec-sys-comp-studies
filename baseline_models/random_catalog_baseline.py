@@ -19,7 +19,7 @@ from config import GlobalConfig, SASRecModelConfig
 sasrec_defaults = SASRecModelConfig()
 
 
-def _build_test_sequences(
+def build_test_sequences(
     user_sequences: dict,
     val_df: pd.DataFrame,
     test_df: pd.DataFrame,
@@ -37,7 +37,7 @@ def _build_test_sequences(
     return test_sequences
 
 
-def _random_prediction_rows(
+def random_prediction_rows(
     target_df: pd.DataFrame,
     user_sequences: dict,
     itemnum: int,
@@ -120,12 +120,12 @@ def runBaselinePipeline(data_type: str = "dense", config: Optional[GlobalConfig]
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
     val_rng = np.random.default_rng(seed)
-    val_preds = _random_prediction_rows(val_df, user_sequences, itemnum, val_rng, num_preds)
+    val_preds = random_prediction_rows(val_df, user_sequences, itemnum, val_rng, num_preds)
     val_preds = convertIDBackToRaw(val_preds, user_int_id, item_int_id)
 
-    test_sequences = _build_test_sequences(user_sequences, val_df, test_df)
+    test_sequences = build_test_sequences(user_sequences, val_df, test_df)
     test_rng = np.random.default_rng(seed + 1_000_003)
-    test_preds = _random_prediction_rows(test_df, test_sequences, itemnum, test_rng, num_preds)
+    test_preds = random_prediction_rows(test_df, test_sequences, itemnum, test_rng, num_preds)
     test_preds = convertIDBackToRaw(test_preds, user_int_id, item_int_id)
 
     column_order = [

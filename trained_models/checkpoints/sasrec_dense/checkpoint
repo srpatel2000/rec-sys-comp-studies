@@ -1,0 +1,5 @@
+model_checkpoint_path: "/Users/siddhipatel/Desktop/desktop/ENGR 299 Capstone/rec-sys-comp-studies/trained_models/checkpoints/sasrec_dense/best-30"
+all_model_checkpoint_paths: "/Users/siddhipatel/Desktop/desktop/ENGR 299 Capstone/rec-sys-comp-studies/trained_models/checkpoints/sasrec_dense/best-1"
+all_model_checkpoint_paths: "/Users/siddhipatel/Desktop/desktop/ENGR 299 Capstone/rec-sys-comp-studies/trained_models/checkpoints/sasrec_dense/best-5"
+all_model_checkpoint_paths: "/Users/siddhipatel/Desktop/desktop/ENGR 299 Capstone/rec-sys-comp-studies/trained_models/checkpoints/sasrec_dense/best-20"
+all_model_checkpoint_paths: "/Users/siddhipatel/Desktop/desktop/ENGR 299 Capstone/rec-sys-comp-studies/trained_models/checkpoints/sasrec_dense/best-30"

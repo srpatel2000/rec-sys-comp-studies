@@ -23,9 +23,9 @@ class BM25SearchIndex:
         self.df = defaultdict(int)
         self.N = 0
         self.avgdl = 0.0
-        self._build()
+        self.build()
 
-    def _build(self):
+    def build(self):
         total_len = 0
         for iid, txt in self.item_text.items():
             toks = tokenize(txt)
@@ -41,7 +41,7 @@ class BM25SearchIndex:
         self.k1 = float(k1)
         self.b = float(b)
 
-    def _idf(self, term: str) -> float:
+    def idf(self, term: str) -> float:
         nt = self.df.get(term, 0)
         return math.log((self.N - nt + 0.5) / (nt + 0.5) + 1e-12)
 
@@ -58,7 +58,7 @@ class BM25SearchIndex:
             if f == 0:
                 continue
             tf_weight = f / (f + self.k1 * norm)
-            s += self._idf(t) * tf_weight
+            s += self.idf(t) * tf_weight
         return s
 
     def search(self, query: str, top_k: int = 100) -> List[Tuple[int, float]]:
@@ -75,5 +75,25 @@ def aggregate_candidates(
         for iid, s in index.search(q, top_k=top_k):
             scores[iid] = max(scores[iid], s)
     ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    return [i for i, _ in ranked], [s for _, s in ranked]
+
+
+def aggregate_candidates_on_items(
+    index: BM25SearchIndex,
+    queries: Iterable[str],
+    item_ids: Iterable[int],
+    top_k: int,
+) -> Tuple[List[int], List[float]]:
+    """BM25 over a fixed shortlist only (used after RAPTOR prefilter)."""
+    item_ids = list(item_ids)
+    if not item_ids:
+        return [], []
+    scores = defaultdict(float)
+    for q in queries:
+        for iid in item_ids:
+            s = index.score(q, iid)
+            if s > 0:
+                scores[iid] = max(scores[iid], s)
+    ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
     return [i for i, _ in ranked], [s for _, s in ranked]
 

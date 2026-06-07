@@ -24,23 +24,23 @@ class GPT4RecommendationBaseModel(nn.Module):
         self.gpt2model = gpt2model
 
     def embed(self, input_ids: torch.Tensor) -> torch.Tensor:
-        vocab_mask = (input_ids < self.vocab_size).long()
+        vocab_mask = (input_ids < self.vocab_size).long()  
         user_mask = (
-            (input_ids >= self.vocab_size)
+            (input_ids >= self.vocab_size) 
             & (input_ids < self.vocab_size + self.num_users)
         ).long()
         item_mask = (input_ids >= self.vocab_size + self.num_users).long()
 
-        vocab_ids = (input_ids * vocab_mask).clamp_(0, self.vocab_size - 1)
+        vocab_ids = (input_ids * vocab_mask).clamp_(0, self.vocab_size - 1) # ensures that values are within the valid range of the vocabulary
         vocab_embeddings = self.gpt2model.transformer.wte(vocab_ids)
         vocab_embeddings = vocab_embeddings * vocab_mask.unsqueeze(-1)
 
-        user_ids = ((input_ids - self.vocab_size) * user_mask).clamp_(0, self.num_users - 1)
+        user_ids = ((input_ids - self.vocab_size) * user_mask).clamp_(0, self.num_users - 1) # ensures that values are within the valid range of the user embeddings
         user_embeddings = self.user_embeddings(user_ids)
         user_embeddings = user_embeddings * user_mask.unsqueeze(-1)
 
         item_ids = (
-            (input_ids - self.vocab_size - self.num_users) * item_mask
+            (input_ids - self.vocab_size - self.num_users) * item_mask # ensures that values are within the valid range of the item embeddings
         ).clamp_(0, self.num_items - 1)
         item_embeddings = self.item_embeddings(item_ids)
         item_embeddings = item_embeddings * item_mask.unsqueeze(-1)

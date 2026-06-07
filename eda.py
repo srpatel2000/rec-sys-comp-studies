@@ -11,7 +11,7 @@ import seaborn as sns
 from config import GlobalConfig
 
 
-def _print_interaction_count_stats(label: str, counts: pd.Series) -> None:
+def print_interaction_count_stats(label: str, counts: pd.Series) -> None:
     """Print min/max range, mean, and median for a series of interaction counts."""
 
     if counts.empty:
@@ -48,8 +48,8 @@ def plotInteractionDistribution(df, user_col, item_col, cold_start=False):
     dataset_tag = "cold_start" if cold_start else "dense"
     print(f"[EDA] {dataset_tag} dataset — interaction count summary")
     print(f"  total interaction rows: {len(df):,}, unique users: {len(user_counts):,}, unique items: {len(item_counts):,}")
-    _print_interaction_count_stats("per user", user_counts)
-    _print_interaction_count_stats("per item", item_counts)
+    print_interaction_count_stats("per user", user_counts)
+    print_interaction_count_stats("per item", item_counts)
 
     # custom bins (forces 2–4 bucket)
     if cold_start == False:
@@ -109,7 +109,7 @@ def plotInteractionDistribution(df, user_col, item_col, cold_start=False):
     plt.close()
 
 
-def _resolve_gpt4rec_runtime_csv(
+def resolve_gpt4rec_runtime_csv(
     data_type: str,
     runtime_csv: Optional[Path] = None,
     trained_models_dir: Optional[Path] = None,
@@ -128,7 +128,7 @@ def _resolve_gpt4rec_runtime_csv(
     return matches[-1]
 
 
-def _gpt4rec_runtime_section(component: str, detail: str) -> Optional[str]:
+def gpt4rec_runtime_section(component: str, detail: str) -> Optional[str]:
     """
     Map a tracker component row to a coarse pipeline section.
     Returns None for rows that are sub-steps of a parent total (avoid double counting).
@@ -155,6 +155,7 @@ def _gpt4rec_runtime_section(component: str, detail: str) -> Optional[str]:
         "bm25_index_build_and_ranker_init",
         "prompting_build_history_prompts_train_texts",
         "in_train_eval_metrics_init_and_val_subsample",
+        "raptor_initialize_and_build_tree",
     ):
         return "Model & retrieval setup"
 
@@ -175,9 +176,9 @@ def _gpt4rec_runtime_section(component: str, detail: str) -> Optional[str]:
             return "Final test"
 
     if component == "bm25_grid_search_outer_loop_total":
-        return "BM25 tuning (validation)"
+        return None
 
-    return "Other"
+    return None
 
 
 def plotGpt4RecRuntimeBySection(
@@ -192,7 +193,7 @@ def plotGpt4RecRuntimeBySection(
     Skips plotting if the runtime CSV does not exist.
   """
 
-    csv_path = _resolve_gpt4rec_runtime_csv(data_type, runtime_csv, trained_models_dir)
+    csv_path = resolve_gpt4rec_runtime_csv(data_type, runtime_csv, trained_models_dir)
     if csv_path is None:
         print(
             f"[EDA] GPT4Rec runtime plot skipped for {data_type}: "
@@ -210,7 +211,7 @@ def plotGpt4RecRuntimeBySection(
 
     section_seconds: Dict[str, float] = {}
     for _, row in df.iterrows():
-        section = _gpt4rec_runtime_section(str(row["component"]), row["detail"])
+        section = gpt4rec_runtime_section(str(row["component"]), row["detail"])
         if section is None:
             continue
         section_seconds[section] = section_seconds.get(section, 0.0) + float(row["duration_sec"])
@@ -224,10 +225,9 @@ def plotGpt4RecRuntimeBySection(
         "Model & retrieval setup",
         "LM fine-tuning",
         "In-training validation",
-        "BM25 tuning (validation)",
+        #"BM25 tuning (validation)",
         "Final validation",
         "Final test",
-        "Other",
     ]
     labels = [s for s in order if s in section_seconds]
     labels += [s for s in section_seconds if s not in labels]
@@ -261,7 +261,7 @@ def plotGpt4RecRuntimeBySection(
     return out_path
 
 
-def _resolve_sasrec_runtime_csv(
+def resolve_sasrec_runtime_csv(
     data_type: str,
     runtime_csv: Optional[Path] = None,
     trained_models_dir: Optional[Path] = None,
@@ -280,7 +280,7 @@ def _resolve_sasrec_runtime_csv(
     return matches[-1]
 
 
-def _sasrec_runtime_section(component: str, detail: str) -> Optional[str]:
+def sasrec_runtime_section(component: str, detail: str) -> Optional[str]:
     """Map SASRec tracker rows to coarse pipeline sections."""
 
     _ = detail
@@ -324,7 +324,7 @@ def plotSasRecRuntimeBySection(
     Skips plotting if the runtime CSV does not exist.
     """
 
-    csv_path = _resolve_sasrec_runtime_csv(data_type, runtime_csv, trained_models_dir)
+    csv_path = resolve_sasrec_runtime_csv(data_type, runtime_csv, trained_models_dir)
     if csv_path is None:
         print(
             f"[EDA] SASRec runtime plot skipped for {data_type}: "
@@ -342,7 +342,7 @@ def plotSasRecRuntimeBySection(
 
     section_seconds: Dict[str, float] = {}
     for _, row in df.iterrows():
-        section = _sasrec_runtime_section(str(row["component"]), row["detail"])
+        section = sasrec_runtime_section(str(row["component"]), row["detail"])
         if section is None:
             continue
         section_seconds[section] = section_seconds.get(section, 0.0) + float(row["duration_sec"])

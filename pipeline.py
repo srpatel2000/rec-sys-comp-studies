@@ -134,10 +134,10 @@ def main():
         runSASRecPipeline("cold_start")
         plotSasRecRuntimeBySection("dense")
         plotSasRecRuntimeBySection("cold_start")
-        # runEval("sasrec", "dense", "val")
-        # runEval("sasrec", "cold_start", "val")
-        # runEval("sasrec", "dense", "test")
-        # runEval("sasrec", "cold_start", "test")
+        runEval("sasrec", "dense", "val")
+        runEval("sasrec", "cold_start", "val")
+        runEval("sasrec", "dense", "test")
+        runEval("sasrec", "cold_start", "test")
 
         # ########## GPT4Rec ##########
         # runGPT4RecPipeline("dense")
@@ -152,8 +152,8 @@ def main():
         # logging.info("Pipeline completed successfully.")
 
         # Dense vs cold_start val@10 training curves (reads CSVs under trained_models/eval_metrics).
-        # curve_dir = str(config.trained_models_dir / "eval_metrics")
-        # refresh_combined_dense_cold_train_eval_plots(curve_dir, "sasrec")
+        curve_dir = str(config.trained_models_dir / "eval_metrics")
+        refresh_combined_dense_cold_train_eval_plots(curve_dir, "sasrec")
         # refresh_combined_dense_cold_train_eval_plots(curve_dir, "gpt4rec")
 
     except Exception as e:

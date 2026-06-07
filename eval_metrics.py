@@ -12,7 +12,7 @@ from utils import createLineChart, createLineChartMulti
 
 K_EVAL = 10
 # Prepended to curve CSVs, per-epoch PNGs, combined PNGs, and post-hoc eval snapshots.
-EVAL_ARTIFACT_PREFIX = ""
+EVAL_ARTIFACT_PREFIX = "v3"
 
 
 def eval_artifact_path(path):
@@ -27,7 +27,7 @@ def eval_artifact_path(path):
     return os.path.join(d if d else ".", EVAL_ARTIFACT_PREFIX + b)
 
 
-def _parse_list_cell(cell):
+def parse_list_cell(cell):
     if pd.isna(cell):
         return None
     if isinstance(cell, list):
@@ -37,13 +37,13 @@ def _parse_list_cell(cell):
     return None
 
 
-def _usable_prediction_rows(predictions_df):
+def usable_prediction_rows(predictions_df):
     """Each row: (ranked_asins list, frozenset of relevant ASINs)."""
 
     rows = []
     for _, row in predictions_df.iterrows():
-        ranked = _parse_list_cell(row["top_k_asins"])
-        gt = _parse_list_cell(row["ground_truth_asins"])
+        ranked = parse_list_cell(row["top_k_asins"])
+        gt = parse_list_cell(row["ground_truth_asins"])
         if not ranked or not gt or len(ranked) < K_EVAL:
             continue
         gset = frozenset(x for x in gt if x is not None)
@@ -53,7 +53,7 @@ def _usable_prediction_rows(predictions_df):
     return rows
 
 
-def _rows_from_int_predictions(pred_df, k=K_EVAL):
+def rows_from_int_predictions(pred_df, k=K_EVAL):
     """In-memory pred frame: top_k_items list, ground_truth_item int."""
 
     rows = []
@@ -66,7 +66,7 @@ def _rows_from_int_predictions(pred_df, k=K_EVAL):
     return rows
 
 
-def _macro_at_k(rows, k):
+def macro_at_k(rows, k):
     """Return (precision, recall, ndcg) macro means or None if no rows.
 
     Precision/recall use **distinct** relevant items found in the top-`k` list
@@ -102,8 +102,8 @@ def _macro_at_k(rows, k):
 def macro_metrics_at_k_items(pred_df, k=K_EVAL):
     """Macro P/R/NDCG@k from a predictForUsers DataFrame (int item ids). Returns dict or None."""
 
-    rows = _rows_from_int_predictions(pred_df, k=k)
-    out = _macro_at_k(rows, k)
+    rows = rows_from_int_predictions(pred_df, k=k)
+    out = macro_at_k(rows, k)
     if out is None:
         return None
     p, r, n = out
@@ -113,8 +113,8 @@ def macro_metrics_at_k_items(pred_df, k=K_EVAL):
 def macro_metrics_at_k_asins(predictions_df, k=K_EVAL):
     """Same as macro_metrics_at_k_items for exported CSV (JSON ASIN columns)."""
 
-    rows = _usable_prediction_rows(predictions_df)
-    out = _macro_at_k(rows, k)
+    rows = usable_prediction_rows(predictions_df)
+    out = macro_at_k(rows, k)
     if out is None:
         return None
     p, r, n = out

@@ -1,0 +1,134 @@
+run_id,data_type,component,duration_sec,epoch,detail
+20260602T014841Z,cold_start,io_load_train_val_test_csv,2.049862,,rows train=580190 val=4579 test=13961
+20260602T014841Z,cold_start,data_concat_and_id_mappings,0.134109,,n_users=50000 n_items=258584
+20260602T014841Z,cold_start,data_build_item_title_texts,5.782982,,n_asin_texts=258584
+20260602T014841Z,cold_start,data_user_histories_and_train_val_examples,10.682622,,n_train_examples=36039 n_val_examples=4579
+20260602T014841Z,cold_start,hf_tokenizer_from_pretrained,0.260447,,distilgpt2
+20260602T014841Z,cold_start,hf_lm_from_pretrained_and_wrap_gpt4rec_generation_model,3.70695,,distilgpt2
+20260602T014841Z,cold_start,device_resolve_and_model_to_device,0.413374,,mps
+20260602T014841Z,cold_start,bm25_index_build_and_ranker_init,0.536583,,n_indexed_items=258584
+20260602T014841Z,cold_start,raptor_initialize_and_build_tree,0.935375,,n_summary_nodes=7719 avg_items_per_summary=45.8 top_summaries=15
+20260602T014841Z,cold_start,prompting_build_history_prompts_train_texts,0.039344,,n_val_prompts=4579 n_train_texts=36039
+20260602T014841Z,cold_start,in_train_eval_metrics_init_and_val_subsample,0.000177,,val_cap=512 sampled_val_users=512
+20260602T014841Z,cold_start,lm_tokenize_encode_and_build_dataloader,7.189024,,max_len=50 batch_size=128 n_train_texts=36039
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,1084.770488,1,n_batches=282
+20260602T014841Z,cold_start,eval_run_setup_params,0.00208,,in_train_val_epoch_1; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.199239,,in_train_val_epoch_1; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,40.370614,,in_train_val_epoch_1; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,248.366748,,in_train_val_epoch_1; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,288.938681,,in_train_val_epoch_1; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,in_train_write_train_curves_and_plots,0.867846,1,eval_metrics append + png refresh
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,289.965725,1,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2346.799792,2,n_batches=282
+20260602T014841Z,cold_start,eval_run_setup_params,0.002648,,in_train_val_epoch_2; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.160309,,in_train_val_epoch_2; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,40.55624,,in_train_val_epoch_2; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,292.379145,,in_train_val_epoch_2; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,333.098342,,in_train_val_epoch_2; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,in_train_write_train_curves_and_plots,0.452993,2,eval_metrics append + png refresh
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,333.691619,2,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,1916.000624,3,n_batches=282
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,0.00052,3,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,1801.698258,4,n_batches=282
+20260602T014841Z,cold_start,eval_run_setup_params,0.002953,,in_train_val_epoch_4; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.1956,,in_train_val_epoch_4; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,36.876715,,in_train_val_epoch_4; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,256.146732,,in_train_val_epoch_4; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,293.222001,,in_train_val_epoch_4; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,in_train_write_train_curves_and_plots,0.345949,4,eval_metrics append + png refresh
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,293.679951,4,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,1617.864649,5,n_batches=282
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,0.000483,5,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,1783.137027,6,n_batches=282
+20260602T014841Z,cold_start,eval_run_setup_params,0.001812,,in_train_val_epoch_6; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.203786,,in_train_val_epoch_6; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,36.528949,,in_train_val_epoch_6; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,222.152345,,in_train_val_epoch_6; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,258.886891,,in_train_val_epoch_6; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,in_train_write_train_curves_and_plots,0.487409,6,eval_metrics append + png refresh
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,259.507138,6,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2110.234041,7,n_batches=282
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,0.000713,7,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,1935.427104,8,n_batches=282
+20260602T014841Z,cold_start,eval_run_setup_params,0.001799,,in_train_val_epoch_8; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.189531,,in_train_val_epoch_8; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,32.324448,,in_train_val_epoch_8; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,189.08505,,in_train_val_epoch_8; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,221.600827,,in_train_val_epoch_8; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,in_train_write_train_curves_and_plots,0.53142,8,eval_metrics append + png refresh
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,222.265034,8,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2527.40292,9,n_batches=282
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,0.000686,9,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2139.59359,10,n_batches=282
+20260602T014841Z,cold_start,eval_run_setup_params,0.002195,,in_train_val_epoch_10; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.161873,,in_train_val_epoch_10; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,35.096302,,in_train_val_epoch_10; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,197.637982,,in_train_val_epoch_10; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,232.898352,,in_train_val_epoch_10; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,in_train_write_train_curves_and_plots,0.396401,10,eval_metrics append + png refresh
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,233.422347,10,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2159.525393,11,n_batches=282
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,0.000386,11,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,3098.1939,12,n_batches=282
+20260602T014841Z,cold_start,eval_run_setup_params,0.00177,,in_train_val_epoch_12; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.173028,,in_train_val_epoch_12; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,42.615388,,in_train_val_epoch_12; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,175.156981,,in_train_val_epoch_12; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,217.947167,,in_train_val_epoch_12; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,in_train_write_train_curves_and_plots,0.513941,12,eval_metrics append + png refresh
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,218.584357,12,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2955.448825,13,n_batches=282
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,0.000675,13,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,3376.962384,14,n_batches=282
+20260602T014841Z,cold_start,eval_run_setup_params,0.002129,,in_train_val_epoch_14; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.162307,,in_train_val_epoch_14; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,35.890496,,in_train_val_epoch_14; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,144.959739,,in_train_val_epoch_14; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,181.014672,,in_train_val_epoch_14; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,in_train_write_train_curves_and_plots,0.540133,14,eval_metrics append + png refresh
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,181.682948,14,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2969.52379,15,n_batches=282
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,0.000837,15,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2948.28914,16,n_batches=282
+20260602T014841Z,cold_start,eval_run_setup_params,0.001857,,in_train_val_epoch_16; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.138886,,in_train_val_epoch_16; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,30.624594,,in_train_val_epoch_16; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,119.341548,,in_train_val_epoch_16; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,150.106884,,in_train_val_epoch_16; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,in_train_write_train_curves_and_plots,0.545014,16,eval_metrics append + png refresh
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,150.772337,16,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2905.016163,17,n_batches=282
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,0.000691,17,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2930.709828,18,n_batches=282
+20260602T014841Z,cold_start,eval_run_setup_params,0.001554,,in_train_val_epoch_18; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.145511,,in_train_val_epoch_18; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,35.003307,,in_train_val_epoch_18; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,107.082284,,in_train_val_epoch_18; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,142.232657,,in_train_val_epoch_18; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,in_train_write_train_curves_and_plots,0.54747,18,eval_metrics append + png refresh
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,142.901431,18,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,3040.009522,19,n_batches=282
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,0.000798,19,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2456.912023,20,n_batches=282
+20260602T014841Z,cold_start,eval_run_setup_params,0.001562,,in_train_val_epoch_20; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.186864,,in_train_val_epoch_20; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,29.558734,,in_train_val_epoch_20; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,94.084155,,in_train_val_epoch_20; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,123.831315,,in_train_val_epoch_20; n_users=512 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,in_train_write_train_curves_and_plots,0.579531,20,eval_metrics append + png refresh
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,124.553108,20,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,lm_epoch_optimizer_forward_backward,2644.938361,21,n_batches=282
+20260602T014841Z,cold_start,lm_epoch_on_epoch_end_callback,0.000694,21,includes in-training eval + write_train_curves when scheduled
+20260602T014841Z,cold_start,eval_run_setup_params,0.0009,,final_full_validation; n_users=4579 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,0.82912,,final_full_validation; n_users=4579 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,259.90686,,final_full_validation; n_users=4579 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,855.340757,,final_full_validation; n_users=4579 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,1116.077637,,final_full_validation; n_users=4579 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,test_split_prompting_build_examples_and_prompts,0.683111,,n_test_examples=13961
+20260602T014841Z,cold_start,eval_run_setup_params,0.000152,,final_full_test; n_users=13961 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_batch_prompt_tokenize,1.504834,,final_full_test; n_users=13961 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_lm_beam_generate,787.271361,,final_full_test; n_users=13961 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_decode_queries_bm25_aggregate_rank,2476.179527,,final_full_test; n_users=13961 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,eval_with_bm25_total,3264.955874,,final_full_test; n_users=13961 infer_bs=8 num_beams=2 num_queries=2 search_top_k=50 k1=1.2 b=0.75 top_summaries=15
+20260602T014841Z,cold_start,io_write_val_test_prediction_csvs,0.087567,,/Users/siddhipatel/Desktop/desktop/ENGR 299 Capstone/rec-sys-comp-studies/data/outputs/gpt4rec
+20260602T014841Z,cold_start,pipeline_end_to_end_wall,57616.641863,,perf_counter from tracker init to save()

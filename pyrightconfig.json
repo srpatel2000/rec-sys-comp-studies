@@ -1,0 +1,6 @@
+{
+  "venvPath": "/Users/siddhipatel",
+  "venv": "new_tf_env",
+  "pythonVersion": "3.11",
+  "reportMissingImports": "warning"
+}

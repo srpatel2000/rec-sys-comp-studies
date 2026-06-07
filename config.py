@@ -61,6 +61,7 @@ class GPT4RecModelConfig:
 	# bm25_b_grid: List[float] = field(default_factory=lambda: [0.5, 0.75, 0.9])
 	bm25_k1_grid: List[float] = field(default_factory=lambda: [1.2])
 	bm25_b_grid: List[float] = field(default_factory=lambda: [0.75])
+	raptor_prefilter_k: int = 25 # top k items to return from RAPTOR for BM25 prefilter
 
 
 

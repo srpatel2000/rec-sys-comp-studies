@@ -3,7 +3,7 @@
 import logging
 import os
 import time
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 import torch
@@ -18,7 +18,8 @@ from eval_metrics import (
 )
 from gpt4rec.model import GPT4RecCandidateRanker, GPT4RecGenerationModel
 from gpt4rec.runtime_tracking import GPT4RecRuntimeTracker
-from gpt4rec.search import BM25SearchIndex, aggregate_candidates
+from gpt4rec.build_raptor import raptor_top_summary_items
+from gpt4rec.search import BM25SearchIndex, aggregate_candidates, aggregate_candidates_on_items
 
 
 def build_lm_encodings(
@@ -99,6 +100,7 @@ def train_generation_model(
                 epoch=epoch,
                 detail=f"n_batches={n_batches}",
             )
+            logging.info(f"[GPT4Rec LM] epoch {epoch}/{num_epochs} optimizer forward backward time: {time.perf_counter() - t_train:.4f}")
         mean_loss = total_loss / n_batches if n_batches else 0.0
         if n_batches:
             logging.info(
@@ -118,6 +120,10 @@ def train_generation_model(
                 epoch=epoch,
                 detail="includes in-training eval + write_train_curves when scheduled",
             )
+
+        logging.info(
+            f"[GPT4Rec LM] epoch {epoch}/{num_epochs} done (mean_loss={mean_loss:.4f})",
+        )
         print(
             f"[GPT4Rec LM] epoch {epoch}/{num_epochs} done (mean_loss={mean_loss:.4f})",
             flush=True,
@@ -137,9 +143,9 @@ def evaluate_with_bm25(
     device: torch.device,
     k1: float,
     b: float,
-    RA: Optional[RetrievalAugmentation] = None,
-    node_to_item_id: Optional[Dict[int, int]] = None,
-    raptor_top_k: Optional[int] = None,
+    RA: Optional[Any] = None,  # built/loaded RAPTOR tree
+    summary_to_items: Optional[Dict[int, List[int]]] = None, # layer-1 summary_idx -> item ids
+    top_summaries: int = 15, # how many top layer-1 summaries to pull per query
     progress_label: Optional[str] = None,
     runtime_tracker: Optional[GPT4RecRuntimeTracker] = None,
     timing_detail: str = "",
@@ -154,6 +160,7 @@ def evaluate_with_bm25(
     num_beams = max(int(getattr(args, "num_beams", 5)), num_queries)
     max_new = max(1, int(getattr(args, "max_query_tokens", 16)))
     search_top_k = max(10, int(getattr(args, "search_top_k", 100)))
+    top_summaries = max(1, int(top_summaries))
     infer_bs = max(1, min(8, int(getattr(args, "batch_size", 8))))
     setup_sec = time.perf_counter() - t_setup
 
@@ -177,7 +184,7 @@ def evaluate_with_bm25(
         )
         tok_sec += time.perf_counter() - t0
         input_ids = enc["input_ids"].to(device)
-        attention_mask = enc["attention_mask"].to(device)
+        attention_mask = enc["attention_mask"].to(device) # tracks padding tokens to ignore during generation
         prompt_len = int(input_ids.shape[1])
 
         t0 = time.perf_counter()
@@ -188,6 +195,16 @@ def evaluate_with_bm25(
             num_return_sequences=num_queries,
             max_new_tokens=max_new,
         )
+
+        # example user prompt generation for viz
+        if start == 0 and not getattr(evaluate_with_bm25, "_example_val_done", False):
+            evaluate_with_bm25._example_val_done = True
+            ex_p = "Previously, the customer has bought: Better Man. Gold. Gold. Invitation Only. I Want You Remastered. Greatest Love Songs. Chicago '85 The Movie. Perfect Moment. In the future, the customer wants to buy"
+            ex = tokenizer([ex_p], truncation=True, max_length=int(getattr(args, "maxlen", 128)), return_tensors="pt")
+            plen = ex["input_ids"].shape[1]
+            ex_gen = model.generate_queries(ex["input_ids"].to(device), ex["attention_mask"].to(device), num_beams=num_beams, num_return_sequences=num_queries, max_new_tokens=max_new)
+            print("[GPT4Rec example val prompt]", [tokenizer.decode(r[plen:], skip_special_tokens=True).strip() for r in ex_gen.tolist()], flush=True)
+
         gen_sec += time.perf_counter() - t0
 
         t0 = time.perf_counter()
@@ -204,17 +221,35 @@ def evaluate_with_bm25(
             if not user_queries:
                 user_queries = [batch_prompts[j][:200]]
 
-            cand_ids, cand_bm25 = aggregate_candidates(
-                search_index, user_queries, top_k=search_top_k
-            )
-            if not cand_ids:
-                rows.append({"ground_truth_item": int(gt), "top_k_items": [int(gt)] * num_preds})
-                continue
+            candidate_ids = set()
+            if RA is not None and summary_to_items:
+                for q in user_queries:
+                    for iid in raptor_top_summary_items(
+                        RA, q, summary_to_items, top_summaries=top_summaries
+                    ):
+                        candidate_ids.add(iid)
+
+            if candidate_ids:
+                cand_ids, cand_bm25 = aggregate_candidates_on_items(
+                    search_index, user_queries, candidate_ids, top_k=search_top_k
+                )
+                # RAPTOR shortlist had no token overlap with the queries; retry on full catalog.
+                if not cand_ids:
+                    cand_ids, cand_bm25 = aggregate_candidates(
+                        search_index, user_queries, top_k=search_top_k
+                    )
+            else:
+                cand_ids, cand_bm25 = aggregate_candidates(
+                    search_index, user_queries, top_k=search_top_k
+                )
+
             scored = ranker.score_candidates(cand_ids, cand_bm25)
             ranked = sorted(scored.keys(), key=lambda x: scored[x], reverse=True)
             topk = [int(x) for x in ranked[:num_preds]]
             if len(topk) < num_preds:
-                pad = topk[0] if topk else int(gt)
+                # Pad with a sentinel id (-1) so empty/short results count as a miss
+                # rather than leaking the ground-truth item into the predictions.
+                pad = topk[0] if topk else -1
                 topk.extend([pad] * (num_preds - len(topk)))
             rows.append({"ground_truth_item": int(gt), "top_k_items": topk[:num_preds]})
         post_sec += time.perf_counter() - t0
@@ -222,7 +257,8 @@ def evaluate_with_bm25(
     if runtime_tracker is not None:
         extra = (
             f"n_users={n} infer_bs={infer_bs} num_beams={num_beams} "
-            f"num_queries={num_queries} search_top_k={search_top_k} k1={k1} b={b}"
+            f"num_queries={num_queries} search_top_k={search_top_k} k1={k1} b={b} "
+            f"top_summaries={top_summaries}"
         )
         d = f"{detail}; {extra}" if detail else extra
         runtime_tracker.log("eval_run_setup_params", setup_sec, detail=d)
@@ -251,6 +287,9 @@ def tune_bm25_params(
     args,
     device: torch.device,
     runtime_tracker: Optional[GPT4RecRuntimeTracker] = None,
+    RA: Optional[Any] = None,
+    summary_to_items: Optional[Dict[int, List[int]]] = None,
+    top_summaries: int = 15,
 ) -> Tuple[float, float]:
     """Grid-search BM25 (k1, b) on val using macro NDCG@10 on int predictions."""
 
@@ -286,9 +325,9 @@ def tune_bm25_params(
                 device,
                 float(k1),
                 float(b),
-                RA=None, # raptor tree
-                node_to_item_id, # mapping of node to item id
-                raptor_top_k, # top k items to return from raptor
+                RA=RA,
+                summary_to_items=summary_to_items,
+                top_summaries=top_summaries,
                 progress_label=f"BM25-tune-{trial}/{n_trials}-k1={k1}-b={b}",
                 runtime_tracker=runtime_tracker,
                 timing_detail=f"bm25_tune_trial_{trial}_of_{n_trials}",
