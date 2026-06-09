@@ -12,7 +12,7 @@ from utils import createLineChart, createLineChartMulti
 
 K_EVAL = 10
 # Prepended to curve CSVs, per-epoch PNGs, combined PNGs, and post-hoc eval snapshots.
-EVAL_ARTIFACT_PREFIX = "v3"
+EVAL_ARTIFACT_PREFIX = "demo"
 
 
 def eval_artifact_path(path):
